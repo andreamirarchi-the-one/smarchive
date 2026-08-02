@@ -1,0 +1,3108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartLink — prototipo (utente nuovo)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap');
+
+  :root{ --ink:#211F1A; --ink-soft:#5B584E; --line:#DAD5C6; --olive:#5C6B4A; --olive-soft:#EBEEE3; --card:#FFFFFF; }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:#EDEAE1; font-family:'Inter',sans-serif; color:var(--ink); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; min-height:100vh; }
+  .phone{ width:380px; background:#F6F3EC; border-radius:32px; border:1px solid var(--line); box-shadow:0 20px 60px rgba(33,31,26,0.15); overflow:hidden; position:relative; }
+  .screen{ padding:20px 0 24px; min-height:660px; transition:background .3s; position:relative; background-size:cover; background-position:center; }
+  .pad{ padding:0 20px; }
+
+  header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .done-chip{ display:none; font-size:12px; font-weight:500; color:#fff; background:var(--ink); padding:7px 14px; border-radius:20px; cursor:pointer; }
+  body.editing .done-chip{ display:block; }
+  .hamburger{ width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.75); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; margin-left:8px; }
+  .hamburger svg{ width:15px; height:15px; stroke:var(--ink); }
+
+  /* #home a piena altezza (non solo quella del contenuto): serve sia perché lo scrim sotto
+     copra davvero tutto lo schermo, sia perché il pulsante "Nota su di te" più sotto, ancorato
+     con bottom, arrivi davvero in fondo alla pagina invece che subito sotto la griglia. */
+  #home.active{ display:flex; flex-direction:column; min-height:616px; }
+  /* Schermata macrocategorie (home): lo sfondo personalizzato (foto o colore) vive su #screen,
+     dietro a #home. Un velo semitrasparente e leggermente sfocato si frappone tra i due, così un
+     fondo scuro o affollato non compromette mai la leggibilità di icone/titoli/orologio — resta
+     comunque visibile in trasparenza, solo ammorbidito. #home diventa qui anche il contenitore di
+     stacking di riferimento (position+z-index espliciti) così lo z-index negativo dello scrim
+     resta sempre confinato sotto ai contenuti della home, senza sprofondare sotto l'intera pagina
+     o dover toccare lo z-index di nessun altro elemento. Non tocca altre schermate. */
+  #home{ position:relative; z-index:0; }
+  .home-bg-scrim{ position:absolute; inset:0; z-index:-1; background:rgba(246,243,236,0.55); backdrop-filter:blur(10px) saturate(1.05); -webkit-backdrop-filter:blur(10px) saturate(1.05); pointer-events:none; }
+  .clock-center{ display:flex; flex-direction:column; align-items:center; margin:8px 0 20px; order:1; position:relative; transition:transform .2s ease, opacity .2s ease; }
+  .clock-center.dragging{ opacity:.88; transition:none; z-index:5; }
+  .grid-wrap{ order:2; display:flex; flex-direction:column; }
+  /* Orologio come widget "tra le icone": stesso nodo del clock-center standalone, solo
+     riformattato per stare in una cella (2 colonne) della griglia icone. */
+  .clock-center.widget-tile-mode{ grid-column:span 2; flex-direction:row; align-items:center; justify-content:center; gap:10px; margin:0; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:8px 14px; }
+  .clock-center.widget-tile-mode .clockface{ margin-bottom:0; flex-shrink:0; }
+  .clock-center.widget-tile-mode p{ text-align:left; font-size:10px; line-height:1.3; }
+  .clockface{ cursor:grab; touch-action:none; }
+  .clockface:active{ cursor:grabbing; }
+  /* Widget generici tra le icone (crediti rimasti, ultima scoperta): stesso linguaggio
+     visivo del widget orologio, ma sono nodi rigenerati ad ogni render, non riparentati. */
+  .widget-tile{ grid-column:span 2; display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:9px 12px; cursor:pointer; text-align:left; }
+  .widget-tile .wt-icon{ width:30px; height:30px; border-radius:9px; background:var(--olive-soft); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; background-size:cover; background-position:center; }
+  .widget-tile .wt-text{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .widget-tile .wt-label{ font-size:10px; font-weight:600; color:var(--ink); }
+  .widget-tile .wt-sub{ font-size:9px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .clockface{ width:64px; height:64px; position:relative; background:var(--face-bg,#fff); border-color:var(--face-ring,#5C6B4A); border-style:solid; border-width:2px; margin-bottom:8px; transition:border-radius .35s ease, background-color .35s ease, border-color .35s ease, border-width .35s ease; }
+  .hand{ position:absolute; left:50%; top:50%; background:var(--face-hand,#211F1A); border-radius:2px; transform-origin:top center; transition:background-color .3s ease, width .25s ease, margin-left .25s ease, border-radius .25s ease; }
+  .hand.hour{ width:3px; height:16px; margin-left:-1.5px; }
+  .hand.min{ width:2px; height:22px; margin-left:-1px; }
+  .hand.style-bold.hour{ width:5px; margin-left:-2.5px; }
+  .hand.style-bold.min{ width:4px; margin-left:-2px; }
+  .hand.style-tapered{ border-radius:50% 50% 3px 3px; }
+  .hand-dot{ position:absolute; bottom:-2px; left:50%; transform:translateX(-50%); width:6px; height:6px; border-radius:50%; display:none; }
+  .hand-dot.show{ display:block; }
+  .shape-circle{ border-radius:50%; }
+  .shape-squircle{ border-radius:26%; }
+  .shape-blob{ border-radius:60% 40% 55% 45% / 45% 55% 42% 58%; }
+  .shape-square{ border-radius:10%; }
+  .clock-center p{ margin:0; font-size:12px; color:var(--ink-soft); text-align:center; }
+  .clock-center span{ font-weight:500; color:var(--ink); }
+
+  .pages{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; }
+  .pages::-webkit-scrollbar{ display:none; }
+  .page{ flex:0 0 100%; scroll-snap-align:start; padding:0 20px; }
+  .grid{ display:grid; gap:14px 10px; }
+  .tile{ text-align:center; cursor:pointer; position:relative; }
+  .tile .icon{ width:100%; aspect-ratio:1; border-radius:16px; background:var(--card); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; margin-bottom:5px; position:relative; overflow:hidden; background-size:cover; background-position:center; }
+  .tile .icon span.emoji{ font-size:18px; }
+  .tile.add .icon{ border-style:dashed; background-color:transparent; color:var(--ink-soft); }
+  .dot-row{ position:absolute; bottom:4px; left:0; right:0; display:flex; justify-content:center; gap:3px; }
+  .dot{ width:5px; height:5px; border-radius:50%; }
+  .tile .title{ font-size:10px; font-weight:500; color:var(--ink); line-height:1.2; }
+  .edit-badge{ position:absolute; top:-3px; right:2px; width:15px; height:15px; border-radius:50%; background:var(--ink); color:#fff; display:none; align-items:center; justify-content:center; font-size:9px; z-index:2; }
+  body.editing .edit-badge{ display:flex; }
+  body.editing .tile:not(.add) .icon{ animation:wiggle .25s ease-in-out infinite alternate; }
+  .tile-pending .icon{ border-style:dashed; opacity:.55; }
+  .pending-badge{ position:absolute; top:-3px; left:2px; font-size:10px; z-index:2; }
+  .boost-badge{ position:absolute; bottom:-3px; right:-2px; background:#D98B3A; color:#fff; font-size:6.5px; font-weight:600; letter-spacing:.2px; padding:2px 4px; border-radius:6px; z-index:2; white-space:nowrap; }
+  @keyframes wiggle{ from{ transform:rotate(-1deg);} to{ transform:rotate(1deg);} }
+  .page-dots{ display:flex; justify-content:center; gap:5px; margin-top:14px; }
+  .page-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); }
+  .page-dot.active{ background:var(--ink); }
+
+  .drawer-bg{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.32); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); z-index:40; }
+  .drawer-bg.active{ display:block; }
+  .drawer{ position:absolute; top:0; right:0; bottom:0; width:84%; background:rgba(246,243,236,0.9); backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5); box-shadow:-10px 0 30px rgba(33,31,26,0.18); z-index:41; transform:translateX(100%); transition:transform .38s cubic-bezier(.32,.72,0,1); display:flex; flex-direction:column; }
+  .drawer.active{ transform:translateX(0); }
+  .drawer.dragging{ transition:none; }
+  .drawer-header{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px 10px; cursor:grab; touch-action:none; }
+  .drawer-header:active{ cursor:grabbing; }
+  .drawer-header h3{ font-family:'Fraunces',serif; font-size:16px; margin:0; font-weight:500; }
+  .drawer-header button{ background:none; border:none; cursor:pointer; }
+  .drawer-header svg{ width:16px; height:16px; stroke:var(--ink); }
+  .drawer-body{ padding:6px 18px 18px; overflow-y:auto; flex:1; }
+  #menu-list{ background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(33,31,26,0.06); }
+  .menu-item{ display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .menu-item:last-child{ border-bottom:none; }
+  .menu-icon{ width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .menu-icon svg{ width:15px; height:15px; stroke:#fff; }
+  .menu-item span{ flex:1; font-size:13.5px; font-weight:500; }
+  .menu-item svg.chevron{ width:11px; height:11px; stroke:var(--ink-soft); flex-shrink:0; }
+  .subpanel{ display:none; }
+  .subpanel.active{ display:block; }
+  .back-mini{ display:flex; align-items:center; gap:6px; margin-bottom:14px; cursor:pointer; }
+  .back-mini svg{ width:14px; height:14px; stroke:var(--ink-soft); }
+  .back-mini span{ font-size:12px; color:var(--ink-soft); }
+  .row-label{ font-size:11.5px; color:var(--ink-soft); margin:0 0 6px; }
+  .wallpaper-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .wp-swatch{ width:30px; height:30px; border-radius:9px; cursor:pointer; border:2px solid transparent; background-size:cover; background-position:center; }
+  .wp-swatch.active{ border-color:var(--ink); }
+  .mood-row{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .mood-card{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:9px 4px 8px; border-radius:14px; border:1.5px solid var(--line); background:#fff; cursor:pointer; width:60px; transition:border-color .2s ease, background-color .2s ease; }
+  .mood-card.active{ border-color:var(--ink); background:var(--olive-soft); }
+  .mood-preview{ width:32px; height:32px; position:relative; margin:0 auto; transition:border-radius .3s ease; }
+  .mood-preview .mp-hand{ position:absolute; left:50%; top:50%; border-radius:2px; transform-origin:top center; }
+  .mood-card span{ font-size:9px; font-weight:500; color:var(--ink-soft); text-align:center; line-height:1.15; }
+  .mood-card.active span{ color:var(--ink); }
+  .field-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+  .field-row input[type=number], .field-row input[type=range]{ width:110px; }
+  .val-badge{ font-size:11.5px; font-weight:500; min-width:34px; text-align:right; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; background:transparent; }
+  input[type=range]::-webkit-slider-runnable-track{ height:4px; border-radius:2px; background:var(--line); }
+  input[type=range]::-moz-range-track{ height:4px; border-radius:2px; background:var(--line); }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; margin-top:-7px; width:18px; height:18px; border-radius:50%; background:#fff; border:1px solid var(--line); box-shadow:0 1px 3px rgba(33,31,26,0.28); cursor:pointer; }
+  input[type=range]::-moz-range-thumb{ width:18px; height:18px; border-radius:50%; background:#fff; border:1px solid var(--line); box-shadow:0 1px 3px rgba(33,31,26,0.28); cursor:pointer; }
+  .range-ticks{ display:flex; justify-content:space-between; font-size:9.5px; color:var(--ink-soft); margin:-8px 0 14px; }
+  .pos-row{ display:flex; gap:8px; margin-bottom:8px; }
+  .pos-btn{ flex:1; padding:9px 6px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:11px; font-weight:500; color:var(--ink-soft); cursor:pointer; text-align:center; }
+  .pos-btn.active{ border-color:var(--ink); color:var(--ink); background:var(--olive-soft); }
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .switch{ position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; position:absolute; }
+  .switch .track{ position:absolute; inset:0; background:var(--line); border-radius:12px; cursor:pointer; transition:background-color .2s ease; }
+  .switch .thumb{ position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(33,31,26,0.3); transition:transform .2s ease; }
+  .switch input:checked ~ .track{ background:var(--olive); }
+  .switch input:checked ~ .track .thumb{ transform:translateX(16px); }
+  .ghost-btn{ width:100%; padding:9px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:12px; color:var(--ink); cursor:pointer; margin-bottom:8px; }
+  .hint{ font-size:10.5px; color:var(--ink-soft); margin:-6px 0 14px; }
+
+  /* Voce d'accesso volutamente dimessa per "una nota su di te": nessuna icona colorata,
+     nessun badge — un semplice link testuale in coda al menu, non un'altra card in evidenza. */
+  .quiet-link-row{ text-align:center; margin-top:16px; }
+  .quiet-link{ font-size:11px; color:var(--ink-soft); background:none; border:none; cursor:pointer; text-decoration:underline; text-underline-offset:2px; font-family:'Inter',sans-serif; padding:4px; }
+  /* Righe "tipo file excel": miniatura piccola e quadrata a sinistra, testo (microcategoria +
+     descrizione fattuale + rimando) a destra — priorità al testo, immagine solo per riconoscere
+     a colpo d'occhio la fonte, non per essere bella da vedere. */
+  .nota-row{ display:flex; align-items:flex-start; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .nota-row:last-child{ border-bottom:none; }
+  .nota-thumb{ width:38px; height:38px; border-radius:6px; background-size:cover; background-position:center; flex-shrink:0; border:1px solid var(--line); margin-top:1px; }
+  .nota-text{ flex:1; min-width:0; }
+  .nota-cat{ font-size:11px; font-weight:600; color:var(--ink); margin:0 0 3px; text-transform:capitalize; }
+  .nota-desc{ font-size:11.5px; color:var(--ink-soft); margin:0 0 6px; line-height:1.42; }
+  .nota-explore{ font-size:11px; font-weight:500; color:var(--olive); background:none; border:none; padding:0; cursor:pointer; font-family:'Inter',sans-serif; }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .back-row{ display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; }
+  .back-row svg{ width:16px; height:16px; stroke:var(--ink); }
+  .back-row span{ font-size:13px; color:var(--ink-soft); }
+  .tag-title{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .tag-dot{ width:12px; height:12px; border-radius:50%; }
+  .tag-title h2{ font-family:'Fraunces',serif; font-weight:500; font-size:19px; margin:0; }
+  .subtitle{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; }
+  /* Griglia a 9 organizzata in "pagine" scorribili lateralmente: una pagina per ogni refresh
+     dell'intera griglia (vedi refreshWholeGrid), stesso principio delle pagine di icone in home
+     (.pages/.page-dots), qui applicato alla griglia delle foto invece che alle icone. Nessuna
+     pagina precedente sparisce mai: restano tutte raggiungibili scorrendo o pigiando i pallini. */
+  .grid-pages{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; margin:0 0 10px; }
+  .grid-pages::-webkit-scrollbar{ display:none; }
+  .grid-page{ flex:0 0 100%; scroll-snap-align:start; }
+  .grid-page-dots{ display:flex; justify-content:center; gap:5px; margin-bottom:14px; }
+  .grid-page-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); cursor:pointer; border:none; padding:0; }
+  .grid-page-dot.active{ background:var(--ink); }
+  .photo-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:2px; }
+  .photo{ aspect-ratio:1; cursor:pointer; background-size:cover; background-position:center; position:relative; }
+  /* Badge discreto quando il placeholder è stato sostituito da un'immagine reale e verificata
+     di pubblico dominio (diritti decaduti) trovata su Wikimedia Commons — vedi resolveRealImage. */
+  .real-photo-badge{ position:absolute; bottom:3px; right:3px; width:15px; height:15px; border-radius:50%; background:rgba(19,18,16,0.55); color:#fff; font-size:9px; display:flex; align-items:center; justify-content:center; }
+  /* Geolocalizzazione e "contenuti reali vicino a te" rimossi del tutto (richiesta esplicita):
+     nessuna sezione, pulsante o chiamata di rete legata alla posizione dell'utente in nessuna
+     macrocategoria. */
+  .credits-row{ display:flex; align-items:center; justify-content:space-between; background:var(--olive-soft); border-radius:14px; padding:10px 14px; margin-bottom:6px; }
+  .credits-row p{ margin:0; font-size:12px; color:var(--olive); font-weight:500; }
+  .credit-dots{ display:flex; gap:4px; flex-wrap:wrap; max-width:140px; justify-content:flex-end; }
+  .credit-dot{ width:7px; height:7px; border-radius:50%; background:var(--olive); }
+  .credit-dot.used{ background:var(--line); }
+  .swipe-hint{ text-align:center; font-size:11px; color:var(--ink-soft); margin-top:8px; }
+  .credits-row.empty{ animation:shake .3s ease; }
+  @keyframes shake{ 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-4px); } 75%{ transform:translateX(4px); } }
+  /* Pulsanti/indicatori "vetro smerigliato" su sfondo chiaro (home, vista tag): stesso linguaggio
+     visivo dei pannelli a comparsa già esistenti (vedi .top-panel), solo più piccoli e leggeri. */
+  .glass-chip{ display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:20px; background:rgba(255,255,255,0.55); backdrop-filter:blur(14px) saturate(1.5); -webkit-backdrop-filter:blur(14px) saturate(1.5); border:1px solid rgba(255,255,255,0.7); color:var(--ink-soft); font:inherit; font-size:11px; font-weight:500; cursor:pointer; box-shadow:0 2px 10px rgba(33,31,26,0.06); }
+  .glass-chip svg{ width:13px; height:13px; stroke:currentColor; flex:0 0 auto; }
+  /* top:-6px (non 14px): #home è ora il contenitore posizionato di riferimento (vedi sopra), il
+     cui bordo superiore è 20px più in basso di quello di #screen (il padding-top di #screen) —
+     -6px riporta il pulsante esattamente dove stava visivamente prima, 14px dal vero bordo dello
+     schermo. Vedi anche EDGE in initTopPanelGestures più sotto nello script: deve coprire tutta
+     l'altezza reale del pulsante (14–42px), non fermarsi a metà come faceva prima. */
+  .glass-corner-hint{ position:absolute; top:-6px; width:28px; height:28px; padding:0; justify-content:center; pointer-events:none; z-index:3; }
+  .glass-corner-hint-left{ left:16px; }
+  .glass-corner-hint-right{ right:16px; }
+  /* Era solo un indizio decorativo (pointer-events:none) sopra home-indicator, per lo swipe-up
+     gestito da initBottomSwipeUp: ora è anche un vero pulsante frost-glass, cliccabile, ancorato
+     in fondo alla pagina (non più subito sotto la griglia) — lo swipe-up resta comunque valido
+     come scorciatoia aggiuntiva, invariato. */
+  .glass-note-hint{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:2; width:max-content; }
+  .glass-session-toggle{ width:100%; justify-content:center; margin-top:10px; }
+  .glass-session-toggle svg{ transition:transform .2s ease; }
+  #session-management.collapsed{ display:none; }
+  /* Tag già toccati in sessione: restano sempre raggiungibili con un tap, senza spendere
+     ulteriori crediti — anche quando i crediti di salto laterale sono esauriti. */
+  .visited-chip{ width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:#fff; font-weight:600; }
+  .visited-chip.current{ border-color:var(--ink); }
+  /* Vista "organizza le porzioni aperte": raggruppa per macrocategoria (griglia di un tag),
+     con le microcategorie ordinabili alfabeticamente o per sfumatura (somiglianza cromatica
+     nello stesso settore) — rivelata scorrendo la griglia del tag verso il basso. */
+  #tagview{ max-height:600px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .org-group{ margin-bottom:16px; }
+  .org-group-header{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .org-group-header span{ font-size:12.5px; font-weight:600; color:var(--ink); }
+  .org-micro-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .org-micro-chip{ font-size:10.5px; font-weight:500; padding:5px 10px; border-radius:14px; color:#fff; }
+
+  .fullscreen{ display:none; position:absolute; inset:0; background:#131210; z-index:20; flex-direction:column; }
+  .fullscreen.active{ display:flex; }
+  /* overflow:hidden clippa il contenuto quando viene zoomato/trascinato oltre i bordi; il
+     transform (scale/translate) è applicato via JS da initFullscreenZoom — doppio tap o pinch. */
+  .fs-img{ position:relative; flex:1; background-size:cover; background-position:center; overflow:hidden; touch-action:none; cursor:zoom-in; transition:transform .25s ease; }
+  /* justify-content:flex-end (non più space-between): il pulsante di refresh che stava a
+     sinistra è stato rimosso (vedi fs-top più sotto in HTML) — resta solo il pulsante di
+     chiusura, in alto a destra come sempre. */
+  .fs-top{ position:absolute; top:16px; left:16px; right:16px; display:flex; justify-content:flex-end; align-items:center; z-index:2; }
+  .fs-close{ width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; }
+  .fs-close svg{ width:14px; height:14px; stroke:#fff; }
+  /* Pulsanti/indicatori "vetro smerigliato" su sfondo scuro/immagine (fullscreen): sfondo chiaro
+     semitrasparente sfocato, testo e icona bianchi. Usato per segnalare che sotto c'è un
+     approfondimento — mai piena opacità, per restare leggero sopra la foto. */
+  .glass-chip-dark{ display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:20px; background:rgba(255,255,255,0.16); backdrop-filter:blur(14px) saturate(1.4); -webkit-backdrop-filter:blur(14px) saturate(1.4); border:1px solid rgba(255,255,255,0.28); color:#fff; font:inherit; font-size:11.5px; font-weight:500; cursor:pointer; }
+  .glass-chip-dark svg{ width:13px; height:13px; stroke:#fff; flex:0 0 auto; }
+  .glass-chip-dark:disabled{ opacity:.45; cursor:default; }
+  .fs-depth-hint{ position:absolute; left:50%; bottom:10px; transform:translateX(-50%); z-index:2; pointer-events:none; padding:5px 11px; font-size:10.5px; }
+  .fs-bottom{ background:#1B1A16; padding:16px 20px 20px; color:#fff; }
+  .fs-bottom h3{ font-family:'Fraunces',serif; font-weight:500; margin:0 0 6px; font-size:16px; }
+  .fs-bottom p.desc{ margin:0 0 14px; font-size:12.5px; color:#C9C6BA; line-height:1.5; }
+  .fs-credit{ display:none; margin:-10px 0 6px; font-size:10.5px; color:#8A877C; }
+  /* Fonte reale dell'immagine (solo se genuinamente risolta da resolveRealImage): link alla
+     pagina vera e, se la fonte stessa lo fornisce, un breve estratto. Mai un testo inventato:
+     se questi campi non arrivano, restano nascosti e non appare nessuna riga al loro posto. */
+  .fs-source-link{ display:none; font-size:11px; color:#C9C6BA; text-decoration:underline; margin:0 0 4px; }
+  .fs-source-excerpt{ display:none; margin:0 0 14px; font-size:11px; color:#9B988C; line-height:1.45; }
+  .bio{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5; }
+
+  .icon-sheet, .confirm-sheet, .packs-sheet, .search-sheet, .frame-sheet, .quick-sheet, .nota-sheet, .emoji-picker-sheet{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.6); z-index:30; align-items:flex-end; }
+  .icon-sheet.active, .confirm-sheet.active, .packs-sheet.active, .search-sheet.active, .frame-sheet.active, .quick-sheet.active, .nota-sheet.active, .emoji-picker-sheet.active{ display:flex; }
+  .nota-sheet.dragging{ display:flex; }
+
+  /* Pannelli "a tendina" stile iPhone: sostituiscono il vecchio menu a tre linee. Swipe-down
+     dall'angolo in alto a sinistra per Aspetto, dall'angolo in alto a destra per Navigazione e
+     Sessione — stessa estetica (blur/vibrancy, ombra, molla) della vecchia tendina, solo
+     ancorati in alto invece che a destra. */
+  .top-panel-bg{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.32); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); z-index:40; }
+  .top-panel-bg.active{ display:block; }
+  .top-panel{ position:absolute; top:0; width:84%; max-height:82%; background:rgba(246,243,236,0.94); backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5); box-shadow:0 14px 30px rgba(33,31,26,0.18); z-index:41; border-radius:0 0 22px 22px; transform:translateY(-100%); transition:transform .38s cubic-bezier(.32,.72,0,1), width .32s ease, max-height .32s ease, bottom .32s ease, border-radius .32s ease; display:flex; flex-direction:column; overflow:hidden; }
+  .top-panel.active{ transform:translateY(0); }
+  .top-panel.dragging{ transition:none; }
+  /* Secondo "stop": da entrambi i lati, un trascinamento più deciso estende il pannello a
+     schermo intero (bottom:0 lo fa aderire fino in fondo, senza dipendere da percentuali di
+     un'altezza del contenitore che è auto/di contenuto) — più aria per tutti i dettagli. */
+  .top-panel.full{ width:auto; max-height:none; bottom:0; left:0; right:0; border-radius:0; }
+  #panel-aspetto{ left:0; }
+  #panel-navsessione{ right:0; }
+  .top-panel-header{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px 10px; cursor:grab; touch-action:none; }
+  .top-panel-header:active{ cursor:grabbing; }
+  .top-panel-header h3{ font-family:'Fraunces',serif; font-size:16px; margin:0; font-weight:500; }
+  .top-panel-header button{ background:none; border:none; cursor:pointer; }
+  .top-panel-header svg{ width:16px; height:16px; stroke:var(--ink); }
+  .top-panel-body{ padding:6px 18px 18px; overflow-y:auto; flex:1; }
+  .section-label{ font-family:'Fraunces',serif; font-weight:500; font-size:13px; margin:16px 0 8px; color:var(--ink); }
+  .section-label:first-child{ margin-top:0; }
+  .home-indicator{ width:36px; height:4px; border-radius:2px; background:var(--line); margin:16px auto 0; opacity:.55; }
+  /* inquadratura sfondo: trascina per posizionare, slider per ingrandire */
+  .frame-preview{ width:100%; aspect-ratio:9/16; max-height:260px; border-radius:16px; background-size:100% auto; background-color:#111; margin-bottom:14px; cursor:grab; touch-action:none; overflow:hidden; border:1px solid var(--line); }
+  .frame-preview:active{ cursor:grabbing; }
+  /* quick actions: pressione prolungata su un'icona in home */
+  .quick-action-list{ display:flex; flex-direction:column; margin-bottom:6px; }
+  .quick-action-item{ display:block; width:100%; text-align:left; padding:12px 4px; border:none; border-bottom:1px solid var(--line); background:none; font-size:13px; color:var(--ink); cursor:pointer; font-family:'Inter',sans-serif; }
+  .quick-action-item:last-child{ border-bottom:none; }
+  .quick-action-item.danger{ color:#B23B3B; }
+  .pack-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .pack-row:last-child{ border-bottom:none; }
+  .pack-info{ flex:1; display:flex; flex-direction:column; gap:1px; }
+  .pack-info strong{ font-size:12.5px; font-weight:500; color:var(--ink); }
+  .pack-info span{ font-size:10.5px; color:var(--ink-soft); }
+  .pack-btn{ font-size:11px; font-weight:500; padding:7px 13px; border-radius:20px; border:1px solid var(--ink); background:var(--ink); color:#fff; cursor:pointer; flex-shrink:0; }
+  .pack-btn:disabled{ background:#fff; color:var(--ink-soft); border-color:var(--line); cursor:default; }
+  .pack-swatch-preview{ width:30px; height:30px; border-radius:9px; flex-shrink:0; }
+  .pack-emoji-preview{ width:30px; height:30px; border-radius:9px; background:var(--olive-soft); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; letter-spacing:-2px; }
+  .search-row{ display:flex; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .search-row:last-child{ border-bottom:none; }
+  .search-row .sr-label{ flex:1; font-size:13px; font-weight:500; color:var(--ink); }
+  .search-row .sr-type{ font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.3px; }
+  .search-section-label{ margin:14px 0 4px; }
+  .search-section-label:first-child{ margin-top:0; }
+  .search-macro-heading{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); margin:16px 0 4px; cursor:pointer; }
+  .search-macro-heading:first-child{ margin-top:0; }
+  .search-row-indent{ padding-left:17px; }
+  .sheet-card{ background:#F6F3EC; width:100%; border-radius:22px 22px 0 0; padding:22px 20px 20px; max-height:80%; overflow-y:auto; position:relative; }
+  .sheet-handle{ position:absolute; top:9px; left:50%; transform:translateX(-50%); width:36px; height:5px; border-radius:3px; background:var(--line); }
+  .close-sheet{ display:block; margin:14px auto 0; font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer; }
+
+  /* pannello modifica icona */
+  .sheet-card h3.title-h{ font-family:'Fraunces',serif; font-weight:500; font-size:16px; margin:0 0 14px; }
+  .sheet-card input[type=text]{ width:100%; margin-bottom:16px; }
+  /* Anteprima live dell'icona in lavorazione: emoji, foto, oppure — di default per una nuova
+     raccolta senza nessuna delle due — il colore della prima macrocategoria scelta. Mai
+     un'emoji casuale inserita in automatico. */
+  .icon-live-preview{ width:48px; height:48px; border-radius:16px; margin:0 0 16px; display:flex; align-items:center; justify-content:center; font-size:22px; background-size:cover; background-position:center; border:1px solid var(--line); }
+  /* Le emoji non compaiono più direttamente nella tendina icona: un'unica voce le raccoglie
+     dietro una ricerca dedicata (vedi #emoji-picker-sheet), per non affollare il pannello
+     principale con decine di sticker da scorrere. */
+  .emoji-entry-btn{ width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit; font-size:12.5px; color:var(--ink); cursor:pointer; margin-bottom:8px; }
+  .emoji-entry-preview{ width:32px; height:32px; border-radius:9px; background:var(--olive-soft); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  /* Si apre sopra la tendina icona (che resta aperta sotto): stesso z-index di base ma un
+     livello sopra esplicito, per non dipendere dal solo ordine nel DOM. */
+  .emoji-picker-sheet{ z-index:31; }
+  .emoji-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:14px; }
+  .emoji-opt{ aspect-ratio:1; border-radius:12px; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; }
+  .emoji-opt.selected{ border-color:var(--ink); border-width:2px; }
+  .tag-chip-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
+  .tag-chip{ display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:20px; border:1px solid var(--line); background:#fff; font-size:12px; font-weight:500; color:var(--ink-soft); cursor:pointer; }
+  .tag-chip .tc-dot{ width:8px; height:8px; border-radius:50%; }
+  .tag-chip.selected{ border-color:var(--ink); color:var(--ink); background:var(--olive-soft); }
+  .tag-chip.disabled{ opacity:.4; cursor:not-allowed; }
+  .tag-hint{ font-size:10.5px; color:var(--ink-soft); margin:0 0 16px; }
+  /* Collegamento fine: oltre alle macrocategorie, un'icona può legarsi anche a specifiche
+     microcategorie (una o più) tra quelle dei tag scelti sopra — facoltativo, per raccolte che
+     vogliono restare più mirate di un intero settore. */
+  .micro-chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+  .micro-chip-toggle{ font-size:10.5px; font-weight:500; padding:5px 10px; border-radius:14px; color:#fff; cursor:pointer; opacity:.45; }
+  .micro-chip-toggle.selected{ opacity:1; box-shadow:0 0 0 2px var(--ink) inset; }
+  .micro-hint{ font-size:10.5px; color:var(--ink-soft); margin:0 0 16px; }
+  .photo-opt-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .photo-opt-preview{ width:44px; height:44px; border-radius:12px; background-size:cover; background-position:center; border:1px solid var(--line); flex-shrink:0; }
+  .sheet-actions{ display:flex; gap:8px; }
+  .sheet-actions button{ flex:1; padding:11px; border-radius:12px; border:1px solid var(--line); font-size:13px; cursor:pointer; }
+  .sheet-actions .primary{ background:var(--ink); color:#fff; border:none; }
+  .sheet-actions .secondary{ background:#fff; color:var(--ink-soft); }
+
+  .lockout{ display:none; position:absolute; inset:0; background:#F6F3EC; z-index:50; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px; }
+  .lockout.active{ display:flex; }
+  .lockout h3{ font-family:'Fraunces',serif; font-weight:500; margin:0 0 8px; }
+  .lockout p{ font-size:12.5px; color:var(--ink-soft); margin:0; }
+  .lockout .big{ font-size:26px; font-weight:500; margin:14px 0; font-family:'Fraunces',serif; }
+  .lockout .recap{ color:var(--ink); font-weight:500; margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen" id="screen">
+
+    <div id="home" class="view active">
+      <div class="home-bg-scrim"></div>
+      <!-- Niente più lente di ricerca qui: la ricerca resta comunque raggiungibile pigiando
+           l'orologio (vedi clockface), e l'angolo in alto a destra viene lasciato libero per lo
+           swipe-down che apre il pannello "Navigazione e sessione" (vedi initTopPanelGestures) —
+           le due affordance nello stesso angolo si sarebbero solo pestate i piedi a vicenda. -->
+      <!-- Indicatori glass discreti (decorativi, pointer-events:none): segnalano la presenza
+           delle tendine nascoste in alto a sx (Aspetto) e a dx (Navigazione e sessione), senza
+           interferire con il gesto di swipe-down già gestito da initTopPanelGestures. -->
+      <div class="glass-chip glass-corner-hint glass-corner-hint-left" title="Scorri giù: Aspetto">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="glass-chip glass-corner-hint glass-corner-hint-right" title="Scorri giù: Navigazione e sessione">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <header class="pad">
+        <div class="done-chip" id="done-chip" onclick="toggleEdit()">Fatto</div>
+      </header>
+
+      <div class="clock-center" id="clock-center">
+        <div class="clockface" id="clockface" aria-label="Pigia al centro per cercare, trascina dal bordo per spostare"><div class="hand hour" id="hand-hour"></div><div class="hand min" id="hand-min"><div class="hand-dot" id="hand-dot"></div></div></div>
+        <p>Prossima porzione tra <span id="timer-label">00:30</span></p>
+      </div>
+
+      <div class="grid-wrap" id="grid-wrap">
+        <div class="pages" id="pages"></div>
+        <div class="page-dots" id="page-dots"></div>
+      </div>
+      <div class="home-indicator" id="home-indicator"></div>
+      <!-- Pulsante glass vero e proprio, ancorato in fondo alla pagina: prima era solo un indizio
+           decorativo per lo swipe-up (initBottomSwipeUp), ora si può anche pigiare direttamente
+           per aprire la nota — lo swipe-up resta comunque valido come scorciatoia in più. -->
+      <button class="glass-chip glass-note-hint" onclick="openNotaSheet()" title="Apri: nota su di te">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+        <span>Nota su di te</span>
+      </button>
+    </div>
+
+    <div id="tagview" class="view pad">
+      <div class="back-row" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Home</span></div>
+      <div class="tag-title"><div class="tag-dot" id="tv-dot"></div><h2 id="tv-title">Cibo</h2></div>
+      <p class="subtitle" id="tv-sub">12 spunti in questo tag</p>
+      <!-- Griglia a 9 organizzata in pagine: una per ogni refresh dell'intera griglia (vedi
+           refreshWholeGrid/renderGridPages). Scorrere qui sopra (swipe/trackpad) passa da una
+           pagina di refresh all'altra — mai cambia microcategoria, quello succede solo dentro lo
+           schermo intero (vedi navigateMicro, invariato). I pallini sotto permettono lo stesso
+           salto con un tap diretto. Nessuna pagina precedente sparisce mai. -->
+      <div class="grid-pages" id="grid-pages"></div>
+      <div class="grid-page-dots" id="grid-page-dots"></div>
+      <!-- Pulsante glass: segnala che sotto la griglia a 9 c'è la gestione della sessione
+           (refresh, microcategorie esplorate, organizzazione) — tap per comprimerla/espanderla
+           senza doverla scoprire per caso scorrendo. -->
+      <button class="glass-chip glass-session-toggle" id="session-toggle-btn" onclick="toggleSessionPanel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" id="session-toggle-chevron"><path d="M6 9l6 6 6-6"/></svg>
+        <span>Gestisci le porzioni aperte</span>
+      </button>
+      <div id="session-management">
+        <!-- "Crediti" indicano il refresh dell'INTERA griglia a 9 (vedi refreshWholeGrid), non più
+             il refresh di un singolo contenuto (rimosso, era in schermo intero) né lo swipe
+             laterale tra microcategorie: quello resta sempre libero (vedi navigateMicro). -->
+        <div class="credits-row" id="credits-row"><p>Refresh disponibili</p><div class="credit-dots" id="credit-dots"></div></div>
+        <button class="ghost-btn" id="grid-refresh-btn" onclick="refreshWholeGrid()">Aggiorna tutta la griglia</button>
+        <p class="hint" style="margin-top:-2px;">Rigenera tutte e 9 le foto di questo tag in un colpo solo. Le foto sostituite non spariscono: restano conservate come pagine scorribili sopra la griglia, con i pallini per saltarci subito.</p>
+        <div id="visited-row"></div>
+        <p class="swipe-hint">← nello schermo intero di una microcategoria, scorri per sfogliare liberamente le altre microcategorie di questo tag (mai cambia categoria, sempre gratis) — il refresh dell'intera griglia invece consuma un refresh disponibile</p>
+
+        <div class="organize-panel" id="organize-panel">
+          <p class="row-label" style="margin-top:18px;">Porzioni aperte in questa sessione</p>
+          <div class="pos-row">
+            <button class="pos-btn active" id="sort-btn-alfa" onclick="setSortMode('alfa')">A–Z</button>
+            <button class="pos-btn" id="sort-btn-colore" onclick="setSortMode('colore')">Somiglianza cromatica</button>
+          </div>
+          <div id="organize-groups"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-panel-bg" id="top-panel-bg" onclick="closeTopPanels()"></div>
+
+    <!-- Swipe-down dall'angolo in alto a sinistra: Aspetto (sfondo, icone, orologio) -->
+    <div class="top-panel" id="panel-aspetto">
+      <div class="top-panel-header"><h3>Aspetto</h3><button onclick="closeTopPanels()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+      <div class="top-panel-body">
+        <p class="section-label">Sfondo</p>
+        <div class="wallpaper-row" id="wallpaper-row"></div>
+        <button class="ghost-btn" onclick="openConfirmSheet()">Carica dalla libreria</button>
+        <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileChosen(event)">
+        <p class="hint">Prima di aprire la libreria, l'app chiede conferma d'accesso alle foto. Dopo la scelta, potrai inquadrarla prima di applicarla.</p>
+        <button class="ghost-btn" onclick="openPacksSheet('sfondo')">Scarica pacchetti sfondo</button>
+        <p class="hint">Sfondi a tema aggiuntivi, con lo stesso meccanismo di download dei quadranti.</p>
+
+        <p class="section-label">Icone</p>
+        <p class="row-label">Dimensione icone</p>
+        <div class="field-row"><input type="range" min="3" max="8" value="4" id="input-size" oninput="updateIconSize(this.value)"><span class="val-badge" id="size-val">4 per riga</span></div>
+        <div class="range-ticks"><span>più grandi</span><span>più piccole</span></div>
+        <button class="ghost-btn" onclick="toggleEdit(); closeTopPanels();">Modifica icone</button>
+        <p class="hint">Si torna alla home: tocca un'icona per cambiarla (emoji, sticker o foto), o il riquadro tratteggiato per aggiungerne una nuova. Tocca "Fatto" in alto per uscire. Una pressione prolungata su un'icona apre anche azioni rapide, senza dover entrare in modifica.</p>
+
+        <p class="section-label">Orologio</p>
+        <p class="row-label">Mood del quadrante</p>
+        <div class="mood-row" id="mood-row"></div>
+        <p class="hint" style="margin-top:-8px;">Ogni mood cambia insieme forma, anello e lancette — non solo il colore.</p>
+        <button class="ghost-btn" onclick="openPacksSheet('orologio')">Scarica altri pacchetti</button>
+        <p class="hint">Pacchetti di quadranti di forma e misura diversa, da aggiungere ai tuoi mood.</p>
+        <div class="field-row"><span class="row-label">Attesa della porzione (sec, demo)</span><input type="number" min="10" max="120" value="30" id="input-porzione" oninput="updatePorzione(this.value)"></div>
+
+        <p class="row-label">Posizione dell'orologio</p>
+        <div class="pos-row">
+          <button class="pos-btn active" id="pos-btn-sopra" onclick="setClockPosition('sopra')">Sopra</button>
+          <button class="pos-btn" id="pos-btn-griglia" onclick="setClockPosition('griglia')">Tra le icone</button>
+          <button class="pos-btn" id="pos-btn-sotto" onclick="setClockPosition('sotto')">Sotto</button>
+        </div>
+        <p class="hint" style="margin-top:-8px;">"Tra le icone" lo trasforma in un widget dentro la griglia. Oppure trascina la maniglietta direttamente in home.</p>
+
+        <p class="row-label">Widget nella home</p>
+        <div class="switch-row"><span class="row-label" style="margin:0;">Refresh rimasti</span><label class="switch"><input type="checkbox" id="toggle-credits-widget" onchange="toggleCreditsWidget(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
+        <div class="switch-row"><span class="row-label" style="margin:0;">Ultima scoperta</span><label class="switch"><input type="checkbox" id="toggle-last-widget" onchange="toggleLastWidget(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
+        <p class="hint" style="margin-top:-8px;">Anche questi vivono nella griglia, come l'orologio tra le icone.</p>
+      </div>
+    </div>
+
+    <!-- Swipe-down dall'angolo in alto a destra: Navigazione e Sessione (era dietro le tre linee) -->
+    <div class="top-panel" id="panel-navsessione">
+      <div class="top-panel-header"><h3>Navigazione e sessione</h3><button onclick="closeTopPanels()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+      <div class="top-panel-body">
+        <p class="section-label">Navigazione</p>
+        <!-- Lo swipe laterale tra microcategorie della stessa macro è sempre libero (vedi
+             navigateMicro): questo contatore riguarda solo il refresh dell'INTERA griglia a 9
+             (vedi refreshWholeGrid), risorsa separata con un valore minimo di 3 e massimo di 18,
+             mai lo swipe stesso. Non esiste più un refresh per singola foto. -->
+        <div class="field-row"><span class="row-label">Refresh disponibili</span><input type="range" min="3" max="18" value="3" id="input-crediti" oninput="updateCrediti(this.value)"><span class="val-badge" id="crediti-val">3</span></div>
+        <div class="range-ticks"><span>3</span><span>18</span></div>
+        <p class="hint">Ogni tag già toccato in questa sessione resta sempre raggiungibile e ogni sua microcategoria resta sempre sfogliabile, senza consumare refresh. Il refresh serve solo a rigenerare tutte e 9 le foto del tag aperto in quel momento, tutte insieme.</p>
+
+        <p class="section-label">Sessione</p>
+        <div class="field-row"><span class="row-label">Utilizzo netto massimo (min)</span><input type="number" min="5" max="180" value="55" id="input-maxnav" onchange="saveLayout()"></div>
+        <p class="hint">Si ferma se l'app va in background: conta solo il tempo di utilizzo reale, non l'orologio a muro.</p>
+        <div class="field-row"><span class="row-label">Blocco dopo il limite (min)</span><input type="number" min="5" max="240" value="60" id="input-wait" onchange="saveLayout()"></div>
+        <p class="hint">Questo invece scorre sempre, anche in background: è un vero timeout, non aggirabile chiudendo l'app.</p>
+        <p class="hint">Demo accelerata: 1 minuto reale = 1 secondo qui, per poter provare il blocco senza aspettare davvero.</p>
+        <button class="ghost-btn" onclick="restartSession()">Riavvia sessione ora</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="fullscreen" id="fullscreen">
+    <!-- Il refresh non vive più qui: non esiste più un aggiornamento per singola foto (rimosso su
+         richiesta esplicita). Per rigenerare i contenuti si torna alla vista a griglia e si usa
+         "Aggiorna tutta la griglia" (vedi refreshWholeGrid), che rinnova tutte e 9 le foto insieme. -->
+    <div class="fs-top">
+      <div class="fs-close" onclick="closeFullscreen()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    </div>
+    <div class="fs-img" id="fs-img">
+      <!-- Indicatore glass discreto: segnala che sotto l'immagine c'è l'approfondimento (fonte,
+           estratto) quando esiste — vedi applyRealImageToFullscreen. -->
+      <div class="glass-chip-dark fs-depth-hint" id="fs-depth-hint" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        <span>Approfondimento sotto</span>
+      </div>
+    </div>
+    <div class="fs-bottom">
+      <h3 id="fs-title">Rullino perso</h3>
+      <p class="desc" id="fs-desc">Scatto analogico da un rullino ritrovato dopo anni in un cassetto.</p>
+      <p class="fs-credit" id="fs-credit"></p>
+      <!-- Fonte reale dell'immagine: appare solo se resolveRealImage ha davvero trovato una pagina
+           e/o un estratto — mai un testo di riempimento inventato per compensarne l'assenza. -->
+      <a class="fs-source-link" id="fs-source-link" href="#" target="_blank" rel="noopener"></a>
+      <p class="fs-source-excerpt" id="fs-source-excerpt"></p>
+      <!-- Nessun collegamento a un profilo social: "Assaggia il profilo" e il link "profilo
+           originale" portavano solo a un account finto ("Marco in viaggio") mai esistito nella
+           realtà — mai fabbricare un profilo per compensarne l'assenza, quindi qui non resta
+           nulla al suo posto. Sotto l'immagine c'è solo la fonte reale (sopra), quando esiste. -->
+    </div>
+  </div>
+
+  <!-- pannello di modifica icona: emoji, sticker o foto. Tap sull'overlay scuro (fuori dalla
+       card) chiude senza salvare — non è più obbligatorio premere "Annulla" o "Salva". -->
+  <div class="icon-sheet" id="icon-sheet" onclick="if(event.target===this) closeIconSheet();">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h" id="icon-sheet-title">Modifica icona</h3>
+      <!-- Anteprima live: mostra sempre lo stato attuale dell'icona in lavorazione — per una
+           nuova raccolta parte dal colore della macrocategoria, non da un'emoji a caso. -->
+      <div class="icon-live-preview" id="icon-live-preview"></div>
+      <input type="text" id="icon-title-input" placeholder="Titolo della raccolta">
+      <p class="row-label">Tag (da 1 a 3)</p>
+      <div class="tag-chip-row" id="tag-chip-row"></div>
+      <p class="tag-hint" id="tag-hint">Scegli almeno un tag dal paniere.</p>
+
+      <!-- Collegamento più fine, facoltativo: una o più microcategorie tra quelle dei tag scelti
+           sopra — utile per raccolte mirate invece che legate a un intero settore. -->
+      <p class="row-label">Microcategorie (facoltativo)</p>
+      <div class="micro-chip-row" id="micro-chip-row"></div>
+      <p class="micro-hint" id="micro-hint">Seleziona almeno un tag sopra per vedere le sue microcategorie.</p>
+
+      <p class="row-label">Fonte collegata</p>
+      <div class="pos-row">
+        <button class="pos-btn active" id="fonte-btn-profilo" onclick="setFonte('profilo')">Intero profilo</button>
+        <button class="pos-btn" id="fonte-btn-selezione" onclick="setFonte('selezione')">Selezione specifica</button>
+      </div>
+
+      <p class="row-label">Emoji e sticker</p>
+      <!-- Le emoji non ingombrano più la tendina principale: un'unica voce apre una ricerca
+           dedicata (vedi #emoji-picker-sheet) per trovare quella desiderata tra tutte quelle
+           disponibili, sticker scaricati inclusi. -->
+      <button class="emoji-entry-btn" id="emoji-entry-btn" onclick="openEmojiPickerSheet()">
+        <span class="emoji-entry-preview" id="emoji-entry-preview">🔍</span>
+        <span>Cerca tra le emoji e gli sticker</span>
+      </button>
+      <p class="row-label">Oppure una foto tua</p>
+      <div class="photo-opt-row">
+        <div class="photo-opt-preview" id="photo-opt-preview"></div>
+        <button class="ghost-btn" style="margin:0" onclick="document.getElementById('icon-file-input').click()">Scegli foto</button>
+      </div>
+      <input type="file" id="icon-file-input" accept="image/*" style="display:none" onchange="onIconPhotoChosen(event)">
+
+      <p class="row-label">Stato collegamento (demo)</p>
+      <p class="hint" id="icon-status-hint">Attivo — sincronizzato con il profilo collegato.</p>
+      <button class="ghost-btn" id="icon-revoke-btn" onclick="simulateRevoke()">Simula revoca del consenso</button>
+      <button class="ghost-btn" id="icon-cleanup-btn" style="display:none;" onclick="simulateCleanup()">Simula pulizia dopo 7 giorni (rimuovi)</button>
+
+      <div class="sheet-actions">
+        <button class="secondary" onclick="closeIconSheet()">Annulla</button>
+        <button class="primary" onclick="saveIconSheet()">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ricerca dedicata per emoji e sticker: si apre sopra la tendina icona, che resta aperta
+       sotto. Filtra per parola chiave (vedi EMOJI_KEYWORDS) invece di mostrare tutto insieme. -->
+  <div class="emoji-picker-sheet" id="emoji-picker-sheet" onclick="if(event.target===this) closeEmojiPickerSheet();">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Emoji e sticker</h3>
+      <input type="text" id="emoji-search-input" placeholder="Cerca (es. 'mare', 'musica', 'cibo')…" oninput="filterEmojiGrid()">
+      <div class="emoji-grid" id="emoji-grid"></div>
+      <p class="hint" id="emoji-search-hint" style="display:none;">Nessuna emoji corrisponde alla ricerca.</p>
+      <button class="ghost-btn" onclick="openPacksSheet('emoji')">Scarica altri sticker</button>
+      <div class="sheet-actions">
+        <button class="secondary" onclick="closeEmojiPickerSheet()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- pacchetti di quadranti scaricabili (mock: in produzione da un catalogo online reale) -->
+  <div class="packs-sheet" id="packs-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h" id="packs-sheet-title">Pacchetti orologio</h3>
+      <p class="bio" id="packs-sheet-sub">Quadranti aggiuntivi di forma e misura diversa, da aggiungere ai tuoi mood.</p>
+      <div id="packs-list"></div>
+      <button class="close-sheet" onclick="closePacksSheet()">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- ricerca: autocomplete su lista chiusa + vista alfabetica completa -->
+  <div class="search-sheet" id="search-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Cerca</h3>
+      <input type="text" id="search-input" placeholder="Cerca un tag o una raccolta…" oninput="onSearchInput(this.value)">
+      <div id="search-results"></div>
+      <button class="close-sheet" onclick="closeSearchSheet()">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- conferma permesso foto -->
+  <div class="confirm-sheet" id="confirm-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Accesso alle foto</h3>
+      <p class="bio">SmartLink vuole accedere alle tue foto per impostare uno sfondo personalizzato.</p>
+      <div class="sheet-actions">
+        <button class="secondary" onclick="closeConfirmSheet()">Non consentire</button>
+        <button class="primary" onclick="confirmPhotoAccess()">Consenti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- inquadratura: prima di usare una foto propria come sfondo, permette di spostarla e ingrandirla -->
+  <div class="frame-sheet" id="frame-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Inquadra lo sfondo</h3>
+      <p class="bio">Trascina per posizionare, usa lo slider per ingrandire. Riguarda solo come la foto viene inquadrata, prima di impostarla come sfondo.</p>
+      <div class="frame-preview" id="frame-preview"></div>
+      <div class="field-row"><span class="row-label" style="margin:0;">Ingrandimento</span><input type="range" min="100" max="220" value="100" id="frame-zoom" oninput="updateFrameZoom(this.value)"></div>
+      <div class="sheet-actions">
+        <button class="secondary" onclick="closeFrameSheet()">Annulla</button>
+        <button class="primary" onclick="applyFrame()">Usa come sfondo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- quick actions: pressione prolungata su un'icona in home, senza dover entrare in modifica -->
+  <div class="quick-sheet" id="quick-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h" id="quick-sheet-title">Raccolta</h3>
+      <div class="quick-action-list" id="quick-action-list"></div>
+      <button class="close-sheet" onclick="closeQuickSheet()">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- Nota su di te: raggiungibile solo con swipe-up dal basso, mai un tasto in vista — la
+       stessa discrezione voluta fin dall'inizio, ora ancora più letterale. -->
+  <div class="nota-sheet" id="nota-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Una nota su di te</h3>
+      <p class="bio">Osservazioni fattuali generate ogni tanto dalle immagini che hai condiviso nelle tue raccolte — non un pannello sempre aggiornato. Nessun punteggio, nessun confronto con altri utenti, nessuna esportazione o condivisione. Servono solo a farti notare pattern che di solito non noteresti da solo, e a indicarti dove guardare dopo.</p>
+      <div id="nota-list"></div>
+      <button class="ghost-btn" onclick="generateNota()">Genera nuove osservazioni</button>
+      <p class="hint" id="nota-hint">Ultima generazione: adesso.</p>
+      <button class="close-sheet" onclick="closeNotaSheet()">Chiudi</button>
+    </div>
+  </div>
+
+  <div class="lockout" id="lockout">
+    <h3>Tempo di navigazione esaurito</h3>
+    <p class="recap" id="lockout-recap">Hai esplorato 0 tag e aperto 0 spunti in questa sessione.</p>
+    <p>Torna tra:</p>
+    <div class="big" id="lockout-timer">60:00</div>
+    <p>(demo accelerata: minuti reali → secondi)</p>
+  </div>
+</div>
+
+<script>
+// 7 mega-settori, in ordine di tonalità arcobaleno: l'ordine dell'array è anche
+// l'ordine di "affinità" usato per le griglie affini (indici adiacenti = tag vicini).
+const settori = [
+  {nome:'cibo', colore:'#C6533E'},
+  {nome:'eventi', colore:'#D98B3A'},
+  {nome:'meme', colore:'#D4B33A'},
+  {nome:'natura', colore:'#6B8F4E'},
+  {nome:'cultura', colore:'#3E7CA6'},
+  {nome:'scienza', colore:'#5D63A6'},
+  {nome:'attualità', colore:'#8A5FA6'},
+];
+// Termine inglese ampio per settore, usato come ultima variante di ricerca nella cascata
+// immagini quando la parola chiave specifica della microcategoria non produce nulla — una rete
+// di sicurezza per non restare mai con troppo poche foto reali (vedi resolveRealImage).
+const SETTORE_EN = { 0:'food', 1:'event', 2:'illustration', 3:'nature', 4:'culture', 5:'science', 6:'news' };
+// Versione "utente nuovo": nessuna raccolta precreata. Chi apre l'app per la prima volta
+// vede solo il riquadro "Aggiungi" e deve comporre da zero le proprie icone (nome, emoji o
+// foto, macro/microcategoria, posizione in home) — le raccolte della versione demo erano solo
+// esempi visivi, mai pensate per esistere già nell'account di un utente reale.
+let pages = [
+  []
+];
+const emojiScelte = ['🏯','📷','🪑','🍝','🥾','🎸','🏺','🛹','🧵','🌿','🎨','🚲','☕','📚','🌸','🐚','⛺','🌙','🔥','🍋','🎧','🧶','🏔️','🌊'];
+// Parole chiave in italiano per la ricerca dedicata delle emoji (vedi filterEmojiGrid). Copre
+// sia il set iniziale sia tutti gli sticker degli pacchetti scaricabili (pacchettiEmoji, sotto):
+// se un'emoji scaricata non è ancora in elenco, resta comunque visibile (nessuna esclusione),
+// semplicemente non verrà trovata cercando una parola chiave finché non la si aggiunge qui.
+const EMOJI_KEYWORDS = {
+  '🏯':'castello giapponese tempio', '📷':'fotocamera foto macchina fotografica', '🪑':'sedia arredo casa',
+  '🍝':'pasta spaghetti cibo', '🥾':'scarpone trekking scarpa', '🎸':'chitarra musica concerto',
+  '🏺':'vaso ceramica anfora', '🛹':'skateboard skate', '🧵':'filo cucito artigianato',
+  '🌿':'foglia natura pianta', '🎨':'palette arte pittura', '🚲':'bicicletta bici',
+  '☕':'caffè colazione tazza', '📚':'libri lettura libreria', '🌸':'fiore fiori primavera',
+  '🐚':'conchiglia mare spiaggia', '⛺':'tenda campeggio', '🌙':'luna notte',
+  '🔥':'fuoco fiamma', '🍋':'limone agrumi', '🎧':'cuffie musica audio',
+  '🧶':'gomitolo lana maglia', '🏔️':'montagna vetta', '🌊':'onda mare oceano',
+  '🌵':'cactus deserto', '🍄':'fungo bosco', '🦋':'farfalla insetto', '🐝':'ape insetto',
+  '🌾':'grano campo spiga', '🦔':'riccio animale', '📼':'videocassetta vhs retro',
+  '📻':'radio musica retro', '🕹️':'joystick videogioco retro', '💾':'floppy disk retro',
+  '📟':'cercapersone pager retro', '☎️':'telefono retro', '🧳':'valigia viaggio',
+  '🗺️':'mappa viaggio', '✈️':'aereo viaggio volo', '🚂':'treno viaggio',
+  '🛶':'canoa barca viaggio', '🏕️':'campeggio tenda viaggio',
+};
+
+// Livello 2 della tassonomia del brief: 2-3+ sotto-categorie per settore, codificate con
+// intensità/chiarezza dello stesso colore (mai un colore nuovo). `sfumatura` è lo scarto di
+// luminosità rispetto al colore base del settore, usata sia per il pallino del chip sia per
+// l'ordinamento "per somiglianza cromatica" nella vista organizzata.
+const microCategorie = {
+  // cibo — `img` è un array di 2-3 frasi via via più specifiche del vero soggetto della
+  // microcategoria (non una parola-ombrello): stesso criterio spiegato sopra a Natura.
+  0: [
+    {nome:'street food', sfumatura:-22, img:['street food vendor stall', 'street food market', 'food cart snack']},
+    {nome:'colazioni', sfumatura:14, img:['breakfast table food', 'morning breakfast spread', 'coffee and pastry breakfast']},
+    {nome:'ricette di casa', sfumatura:-6, img:['home cooked meal', 'home cooking kitchen', 'family recipe dish']},
+    {nome:'dolci', sfumatura:22, img:['pastry dessert', 'cake and sweets', 'bakery dessert display']},
+    {nome:'osterie di quartiere', sfumatura:-14, img:['trattoria restaurant interior', 'neighborhood tavern dining', 'italian osteria']},
+    {nome:'mercati e botteghe', sfumatura:8, img:['food market stall', 'grocery market produce', 'local food shop']},
+    {nome:'vino e cantine', sfumatura:-2, img:['wine cellar barrels', 'vineyard wine tasting', 'wine bottles cellar']},
+    {nome:'panificazione', sfumatura:-18, img:['bread baking oven', 'fresh baked bread loaves', 'bakery bread dough']},
+    {nome:'piatti stagionali', sfumatura:4, img:['seasonal produce dish', 'farm to table vegetables', 'harvest seasonal ingredients']},
+  ],
+  // eventi
+  1: [
+    {nome:'concerti', sfumatura:-22, img:['concert stage crowd', 'live music concert', 'band performing stage']},
+    {nome:'sagre', sfumatura:14, img:['village fair festival', 'country fair stalls', 'local sagra food festival']},
+    {nome:'mostre', sfumatura:-6, img:['art exhibition gallery', 'museum exhibition visitors', 'art show display']},
+    {nome:'mercatini', sfumatura:22, img:['flea market stalls', 'outdoor market vendors', 'antique market stand']},
+    {nome:'festival', sfumatura:-14, img:['festival crowd outdoor', 'summer festival celebration', 'street festival event']},
+    {nome:'presentazioni di libri', sfumatura:8, img:['author book reading', 'book presentation event', 'library reading event']},
+    {nome:'spettacoli dal vivo', sfumatura:-2, img:['live theatre performance', 'stage performance actors', 'live show audience']},
+    {nome:'feste di quartiere', sfumatura:-18, img:['street party neighborhood', 'block party celebration', 'community street festival']},
+    {nome:'rassegne cinematografiche', sfumatura:4, img:['film festival screening', 'cinema festival audience', 'outdoor movie screening']},
+  ],
+  // meme — categoria senza equivalente reale licenziabile (i meme moderni non sono di pubblico
+  // dominio): puntiamo su vignette satiriche/caricature storiche realmente di pubblico dominio,
+  // così anche l'immagine di sfondo del tile resta onesta.
+  2: [
+    {nome:'meme classici', sfumatura:-22, img:['satirical cartoon illustration', 'caricature drawing vintage', 'comic illustration humor']},
+    {nome:'screenshot', sfumatura:14, img:['vintage advertisement graphic', 'retro poster design', 'printed ephemera illustration']},
+    {nome:'formati virali', sfumatura:-6, img:['popular illustration graphic', 'graphic art print', 'illustrated broadsheet']},
+    {nome:'citazioni fuori contesto', sfumatura:22, img:['typography poster print', 'vintage lettering illustration', 'printed quote broadside']},
+    {nome:'animali improbabili', sfumatura:-14, img:['funny animal photograph', 'comical animal picture', 'odd animal behavior photo']},
+    {nome:'meme nostalgici', sfumatura:8, img:['vintage nostalgia photograph', 'retro photograph old', 'nostalgic snapshot photo']},
+    {nome:'ironia da ufficio', sfumatura:-2, img:['office illustration cartoon', 'vintage workplace cartoon', 'business satire illustration']},
+    {nome:'meme di attualità', sfumatura:18, img:['political cartoon satire', 'news satire illustration', 'editorial cartoon vintage']},
+    {nome:'meme surreali', sfumatura:4, img:['surrealist art illustration', 'surreal painting dreamlike', 'fantastical illustration art']},
+  ],
+  // natura — `img` qui è un array di 2-4 frasi via via più specifiche (non più una singola
+  // parola generica): si parte dal soggetto vero e proprio della microcategoria (es. 'mare' deve
+  // portare a pesci e vita marina, non a un generico paesaggio costiero) e si allarga solo dopo,
+  // toccando sia il registro naturalistico/fotografico sia quello museale/specimen quando i due
+  // si intrecciano naturalmente (es. pesci, uccelli, insetti hanno spesso illustrazioni storiche
+  // di storia naturale nei musei, oltre alle foto). Vedi microQueryVariants per come si combina
+  // con nome/settore come reti di sicurezza finali.
+  3: [
+    {nome:'trekking', sfumatura:-22, img:['hikers on mountain trail', 'hiking trail nature', 'trekking path']},
+    {nome:'giardini', sfumatura:14, img:['botanical garden landscape', 'formal garden flowers', 'public garden']},
+    {nome:'mare', sfumatura:-6, img:['fish underwater', 'coral reef marine fish', 'sea fish photography', 'ocean marine life']},
+    {nome:'montagna', sfumatura:22, img:['alpine mountain peak', 'mountain range landscape', 'mountain summit vista']},
+    {nome:'boschi e sentieri', sfumatura:-14, img:['forest path trees', 'woodland trail', 'forest canopy path']},
+    {nome:'animali selvatici', sfumatura:8, img:['wild animal photography', 'wildlife safari animal', 'wild mammal nature']},
+    {nome:'fiori e botanica', sfumatura:-2, img:['flower macro photography', 'botanical illustration flower', 'wildflower close up']},
+    {nome:'albe e tramonti', sfumatura:18, img:['sunset sky landscape', 'sunrise horizon nature', 'golden hour landscape']},
+    {nome:'laghi e fiumi', sfumatura:-18, img:['mountain lake reflection', 'river landscape nature', 'lake shoreline scenery']},
+  ],
+  // cultura
+  4: [
+    {nome:'ceramica', sfumatura:-22, img:['ceramic pottery vase', 'clay pottery craft', 'porcelain ceramic art']},
+    {nome:'architettura', sfumatura:14, img:['historic architecture facade', 'building architecture detail', 'monumental architecture exterior']},
+    {nome:'musei', sfumatura:-6, img:['museum interior gallery', 'museum exhibition hall', 'museum collection display']},
+    {nome:'vintage', sfumatura:22, img:['vintage photograph portrait', 'old photograph archive', 'antique photograph print']},
+    {nome:'artigianato', sfumatura:-14, img:['traditional handicraft craftsman', 'artisan handmade craft', 'handicraft workshop tools']},
+    {nome:'fotografia analogica', sfumatura:8, img:['analog film camera', 'film photography darkroom', 'vintage camera photograph']},
+    {nome:'librerie indipendenti', sfumatura:-2, img:['bookshop interior shelves', 'independent bookstore books', 'library bookshelf interior']},
+    {nome:'teatri storici', sfumatura:18, img:['historic theatre interior', 'opera house auditorium', 'vintage theatre stage']},
+    {nome:'tradizioni locali', sfumatura:4, img:['folk tradition costume', 'traditional festival costume', 'cultural heritage ceremony']},
+  ],
+  // scienza
+  5: [
+    {nome:'curiosità', sfumatura:-22, img:['science museum exhibit', 'scientific instrument display', 'curiosity cabinet specimen']},
+    {nome:'spazio', sfumatura:14, img:['outer space nebula', 'planet space photograph', 'astronaut space mission']},
+    {nome:'natura scientifica', sfumatura:-6, img:['natural history specimen', 'natural history museum exhibit', 'scientific specimen collection']},
+    {nome:'esperimenti casalinghi', sfumatura:22, img:['science experiment laboratory', 'chemistry experiment classroom', 'physics experiment demonstration']},
+    {nome:'divulgazione', sfumatura:-14, img:['science classroom demonstration', 'science education exhibit', 'planetarium science display']},
+    {nome:'tecnologia emergente', sfumatura:8, img:['modern technology device', 'robotics technology innovation', 'electronic circuit technology']},
+    {nome:'biologia marina', sfumatura:-2, img:['marine biology specimen', 'ocean marine research', 'underwater marine organism']},
+    {nome:'astronomia amatoriale', sfumatura:18, img:['telescope night sky', 'amateur astronomy stargazing', 'stars night sky photograph']},
+    {nome:'ecologia e clima', sfumatura:4, img:['climate change landscape', 'ecology conservation nature', 'environmental landscape climate']},
+  ],
+  // attualità — molte di queste microcategorie sono meglio servite da archivi storici di
+  // giornali/fotografia documentaria piuttosto che da termini astratti come 'analisi' o
+  // 'opinioni', che non descrivono nulla di fotografabile.
+  6: [
+    {nome:'rassegna stampa', sfumatura:-22, img:['vintage newspaper front page', 'historical newspaper archive', 'old newspaper print']},
+    {nome:'opinioni', sfumatura:-6, img:['newspaper opinion page', 'editorial page vintage', 'printed column newspaper']},
+    {nome:'inchieste', sfumatura:22, img:['journalist reporter vintage photograph', 'investigative reporter archive', 'press reporter photograph']},
+    {nome:'economia quotidiana', sfumatura:-14, img:['marketplace economy vintage photograph', 'trade market vintage photo', 'commerce street market historical']},
+    {nome:'società e costume', sfumatura:8, img:['historical street scene photograph', 'everyday life vintage photograph', 'social gathering historical photo']},
+    {nome:'innovazione civica', sfumatura:-2, img:['city hall civic building', 'public civic architecture', 'municipal building historical']},
+    {nome:'cronaca locale', sfumatura:18, img:['local newspaper vintage photograph', 'town street historical photograph', 'community event vintage photo']},
+    {nome:'dibattiti pubblici', sfumatura:-18, img:['public assembly meeting historical', 'town hall meeting vintage', 'public gathering speech photograph']},
+    {nome:'tendenze emergenti', sfumatura:4, img:['modern city street photograph', 'contemporary urban scene', 'city skyline modern photograph']},
+  ],
+};
+function shadeColor(hex, percent){
+  const f = parseInt(hex.slice(1), 16), t = percent < 0 ? 0 : 255, p = Math.abs(percent) / 100;
+  const R = f >> 16, G = (f >> 8) & 0x00FF, B = f & 0x0000FF;
+  const nr = Math.round((t - R) * p) + R, ng = Math.round((t - G) * p) + G, nb = Math.round((t - B) * p) + B;
+  return '#' + (0x1000000 + nr * 0x10000 + ng * 0x100 + nb).toString(16).slice(1);
+}
+function microColore(settoreIdx, microIdx){
+  const m = microCategorie[settoreIdx][microIdx];
+  return shadeColor(settori[settoreIdx].colore, m.sfumatura);
+}
+// Varianti di ricerca per una microcategoria: `img` può essere una singola parola (le
+// macrocategorie non ancora rifinite) oppure un array di 2-4 frasi via via più specifiche
+// (mare -> pesci/vita marina prima, paesaggio costiero dopo) — vedi la nota sopra `microCategorie`
+// per il criterio con cui le riscriviamo macrocategoria per macrocategoria. In coda aggiungiamo
+// comunque il nome italiano e il termine ampio del settore, così una ricerca troppo di nicchia
+// non lascia mai il tile senza foto.
+function microQueryVariants(settoreIdx, microIdx){
+  const m = microCategorie[settoreIdx][microIdx];
+  const specifiche = Array.isArray(m.img) ? m.img : [m.img];
+  return [...specifiche, m.nome, SETTORE_EN[settoreIdx]];
+}
+let cols = 4;
+let currentPage = 0;
+let editorCtx = null; // {pageIdx, iconIdx or null}, tempEmoji, tempImage
+let clockPosition = 'sopra'; // 'sopra' | 'griglia' | 'sotto' — dichiarata qui, prima della
+// prima renderPages(), perché la funzione la legge subito per decidere dove inserire il widget.
+let showCreditsWidget = false;
+let showLastWidget = false;
+let lastCreditsInfo = null; // {idx, colore} dell'ultimo tag visitato, per il widget crediti
+let lastDiscovery = null;   // {seed, idx, microIdx} dell'ultimo spunto aperto a schermo intero
+
+function maxPerPage(){ return cols * 3; }
+
+function creditsWidgetHTML(){
+  if(!lastCreditsInfo){
+    return `<div class="tile widget-tile" id="credits-widget-tile"><div class="wt-icon">⏳</div><div class="wt-text"><span class="wt-label">Refresh rimasti</span><span class="wt-sub">Esplora un tag per vederli qui</span></div></div>`;
+  }
+  const { idx } = lastCreditsInfo;
+  const s = settori[idx];
+  const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+  return `<div class="tile widget-tile" id="credits-widget-tile" onclick="openTag(${idx})"><div class="wt-icon" style="background:${s.colore}22;">⏳</div><div class="wt-text"><span class="wt-label">Refresh rimasti</span><span class="wt-sub"><span class="tc-dot" style="width:6px;height:6px;border-radius:50%;background:${s.colore};display:inline-block;"></span>${credits}/${maxCredits} in «${nome}»</span></div></div>`;
+}
+function lastWidgetHTML(){
+  if(!lastDiscovery){
+    return `<div class="tile widget-tile" id="last-widget-tile"><div class="wt-icon">✦</div><div class="wt-text"><span class="wt-label">Ultima scoperta</span><span class="wt-sub">Ancora nessuna</span></div></div>`;
+  }
+  const { seed, idx } = lastDiscovery;
+  const s = settori[idx];
+  const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+  return `<div class="tile widget-tile" id="last-widget-tile" onclick="openFullscreen('${seed}', settori[${idx}])"><div class="wt-icon" style="background-image:url(https://picsum.photos/seed/${seed}/100/100);"></div><div class="wt-text"><span class="wt-label">Ultima scoperta</span><span class="wt-sub">${nome}</span></div></div>`;
+}
+function refreshWidgetTiles(){
+  const ct = document.getElementById('credits-widget-tile');
+  if(ct) ct.outerHTML = creditsWidgetHTML();
+  const lt = document.getElementById('last-widget-tile');
+  if(lt) lt.outerHTML = lastWidgetHTML();
+}
+function toggleCreditsWidget(v){ showCreditsWidget = v; renderPages(); saveLayout(); }
+function toggleLastWidget(v){ showLastWidget = v; renderPages(); saveLayout(); }
+
+function renderPages(){
+  const clockEl = document.getElementById('clock-center');
+  if(clockEl.parentElement) clockEl.parentElement.removeChild(clockEl);
+
+  const container = document.getElementById('pages');
+  container.innerHTML = '';
+  pages.forEach((pageIcons, pIdx) => {
+    const pageEl = document.createElement('div');
+    pageEl.className = 'page';
+    const gridEl = document.createElement('div');
+    gridEl.className = 'grid';
+    gridEl.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+    // L'orologio "tra le icone": è lo stesso nodo clock-center riparentato come primo
+    // elemento della griglia della prima pagina, non una copia — cosi' resta un unico
+    // orologio che ticchetta sempre, sia da solo sopra/sotto sia come widget nella griglia.
+    if(pIdx === 0 && clockPosition === 'griglia'){
+      clockEl.classList.add('widget-tile-mode');
+      gridEl.appendChild(clockEl);
+    }
+    // Widget opzionali "crediti rimasti" e "ultima scoperta": come l'orologio, vivono nella
+    // griglia della prima pagina; a differenza sua sono rigenerati ad ogni render (nessun
+    // nodo unico da riparentare), e vengono aggiornati in-place da refreshWidgetTiles().
+    if(pIdx === 0 && showCreditsWidget) gridEl.insertAdjacentHTML('beforeend', creditsWidgetHTML());
+    if(pIdx === 0 && showLastWidget) gridEl.insertAdjacentHTML('beforeend', lastWidgetHTML());
+    pageIcons.forEach((ic, i) => {
+      const el = document.createElement('div');
+      el.className = 'tile' + (ic.pending ? ' tile-pending' : '');
+      // Pressione prolungata (tipico delle app social attuali): apre un quick-sheet con azioni
+      // rapide senza dover entrare in modalità modifica. Il tap breve resta il comportamento
+      // normale (apri/modifica); un flag per-tile evita che il click parta anche dopo il long-press.
+      let longPressTimer = null, longPressFired = false;
+      el.addEventListener('pointerdown', () => {
+        longPressFired = false;
+        longPressTimer = setTimeout(() => { longPressFired = true; openQuickSheet(pIdx, i); }, 450);
+      });
+      ['pointerup','pointercancel','pointerleave'].forEach(evt => el.addEventListener(evt, () => clearTimeout(longPressTimer)));
+      el.onclick = () => {
+        if(longPressFired){ longPressFired = false; return; }
+        if(document.body.classList.contains('editing')) openIconSheet(pIdx, i);
+        else openTag(ic.settori[0]);
+      };
+      // Se non c'è né un'emoji né una foto (caso di default per una raccolta appena creata),
+      // l'icona mostra il colore della prima macrocategoria scelta invece di restare vuota o
+      // di ricevere un'emoji a sorpresa mai richiesta dall'utente.
+      const visual = ic.image ? '' : (ic.emoji ? `<span class="emoji">${ic.emoji}</span>` : '');
+      const iconStyle = ic.image
+        ? `background-image:url(${ic.image})`
+        : (!ic.emoji ? `background:${settori[ic.settori[0]].colore}` : '');
+      const dots = ic.settori.map(idx => `<div class="dot" style="background:${settori[idx].colore}"></div>`).join('');
+      const pendingBadge = ic.pending ? `<div class="pending-badge" title="In sospeso: consenso non rilevato">⏳</div>` : '';
+      const boostBadge = ic.boosted ? `<div class="boost-badge">in evidenza</div>` : '';
+      el.innerHTML = `<div class="icon" style="${iconStyle}">${visual}<div class="dot-row">${dots}</div><div class="edit-badge">✎</div>${pendingBadge}${boostBadge}</div><div class="title">${ic.titolo}</div>`;
+      gridEl.appendChild(el);
+    });
+    const addEl = document.createElement('div');
+    addEl.className = 'tile add';
+    addEl.onclick = () => openIconSheet(pIdx, null);
+    addEl.innerHTML = `<div class="icon"><span class="emoji">+</span></div><div class="title">Aggiungi</div>`;
+    gridEl.appendChild(addEl);
+    pageEl.appendChild(gridEl);
+    container.appendChild(pageEl);
+  });
+  if(clockPosition !== 'griglia'){
+    clockEl.classList.remove('widget-tile-mode');
+    document.getElementById('home').appendChild(clockEl);
+  }
+  renderDots();
+}
+function renderDots(){
+  const dots = document.getElementById('page-dots');
+  dots.innerHTML = '';
+  pages.forEach((_, i) => { const d = document.createElement('div'); d.className = 'page-dot' + (i === currentPage ? ' active' : ''); dots.appendChild(d); });
+}
+document.getElementById('pages').addEventListener('scroll', function(){
+  currentPage = Math.round(this.scrollLeft / this.clientWidth);
+  renderDots();
+});
+
+function toggleEdit(){ document.body.classList.toggle('editing'); }
+function updateIconSize(v){
+  cols = parseInt(v);
+  document.getElementById('size-val').textContent = cols + ' per riga';
+  renderPages();
+  saveLayout();
+}
+renderPages();
+
+// In modalità modifica, toccare un punto vuoto della home (fuori da un'icona, dall'hamburger
+// o dal chip "Fatto") chiude la modifica — non serve per forza rientrare dal menu.
+document.getElementById('home').addEventListener('click', (e) => {
+  if(!document.body.classList.contains('editing')) return;
+  if(e.target.closest('.tile') || e.target.closest('.hamburger') || e.target.closest('.done-chip')) return;
+  toggleEdit();
+});
+
+// L'orologio di default sta sopra la griglia ma ha tre posizioni possibili: sopra, sotto,
+// oppure "tra le icone" — dove diventa un widget vero e proprio dentro la griglia stessa
+// (vedi renderPages). Si cambia posizione sia dal toggle nelle impostazioni Aspetto sia
+// trascinando la maniglietta: un trascinamento breve entra ed esce dalla griglia, uno
+// lungo salta direttamente da sopra a sotto (o viceversa).
+function setClockPosition(pos){
+  clockPosition = pos;
+  const cc = document.getElementById('clock-center');
+  const gw = document.getElementById('grid-wrap');
+  if(pos === 'griglia'){
+    cc.style.order = '';
+    gw.style.order = '';
+  } else {
+    cc.style.order = pos === 'sotto' ? '2' : '1';
+    gw.style.order = pos === 'sotto' ? '1' : '2';
+  }
+  document.getElementById('pos-btn-sopra').classList.toggle('active', pos === 'sopra');
+  document.getElementById('pos-btn-griglia').classList.toggle('active', pos === 'griglia');
+  document.getElementById('pos-btn-sotto').classList.toggle('active', pos === 'sotto');
+  renderPages();
+  applyMood(); // ricalcola la dimensione del quadrante (compatta se è entrato nella griglia)
+  saveLayout();
+}
+// Il quadrante stesso è l'area interattiva, senza più una maniglietta separata: pigiare vicino
+// al bordo/anello avvia il trascinamento per spostare l'orologio (stessa logica di prima), un
+// tap vicino al centro apre invece la banda di ricerca con tutte le macro/microcategorie.
+(function initClockInteraction(){
+  const cc = document.getElementById('clock-center');
+  const cf = document.getElementById('clockface');
+  const EDGE_RATIO = 0.55; // oltre il 55% del raggio dal centro è considerato "bordo"
+  let mode = null; // 'drag' | 'tap' | null
+  let startY = 0;
+  cf.addEventListener('pointerdown', (e) => {
+    const rect = cf.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const radius = (rect.width || 64) / 2;
+    mode = dist > radius * EDGE_RATIO ? 'drag' : 'tap';
+    startY = e.clientY;
+    if(mode === 'drag') cc.classList.add('dragging');
+    if(cf.setPointerCapture){ try { cf.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  cf.addEventListener('pointermove', (e) => {
+    if(mode !== 'drag') return;
+    cc.style.transform = `translateY(${e.clientY - startY}px)`;
+  });
+  function endDrag(e){
+    if(mode === 'drag'){
+      const dy = e.clientY - startY;
+      cc.classList.remove('dragging');
+      cc.style.transform = '';
+      const near = 45, far = 130;
+      let next = clockPosition;
+      if(clockPosition === 'sopra'){
+        if(dy > far) next = 'sotto';
+        else if(dy > near) next = 'griglia';
+      } else if(clockPosition === 'sotto'){
+        if(dy < -far) next = 'sopra';
+        else if(dy < -near) next = 'griglia';
+      }
+      if(next !== clockPosition) setClockPosition(next);
+    } else if(mode === 'tap'){
+      openSearchSheet();
+    }
+    mode = null;
+  }
+  cf.addEventListener('pointerup', endDrag);
+  cf.addEventListener('pointercancel', () => {
+    cc.classList.remove('dragging');
+    cc.style.transform = '';
+    mode = null;
+  });
+})();
+
+// --- pannello di modifica/aggiunta icona ---
+function openIconSheet(pageIdx, iconIdx){
+  const isNew = iconIdx === null;
+  editorCtx = {
+    pageIdx, iconIdx,
+    // Una nuova raccolta non parte più con un'emoji automatica (era '✨' per tutte, sempre
+    // uguale): l'icona di default è il colore della macrocategoria, scelto dall'utente tra i
+    // tag qui sotto — vedi renderIconLivePreview. Resta un'emoji solo se l'icona la aveva già.
+    tempEmoji: isNew ? null : (pages[pageIdx][iconIdx].emoji || null),
+    tempImage: isNew ? null : (pages[pageIdx][iconIdx].image || null),
+    tempSettori: isNew ? [] : [...pages[pageIdx][iconIdx].settori],
+    // Microcategorie collegate (facoltative): elenco di chiavi "settoreIdx|microIdx".
+    tempMicro: isNew ? [] : [...(pages[pageIdx][iconIdx].microcategorie || [])],
+    tempFonte: isNew ? 'profilo' : (pages[pageIdx][iconIdx].fonte || 'profilo'),
+  };
+  document.getElementById('icon-sheet-title').textContent = isNew ? 'Nuova raccolta' : 'Modifica icona';
+  document.getElementById('icon-title-input').value = isNew ? '' : pages[pageIdx][iconIdx].titolo;
+  renderTagChips();
+  renderMicroChips();
+  renderFonteButtons();
+  refreshEmojiEntryPreview();
+  document.getElementById('photo-opt-preview').style.backgroundImage = editorCtx.tempImage ? `url(${editorCtx.tempImage})` : 'none';
+  refreshStatusUI();
+  renderIconLivePreview();
+  document.getElementById('icon-sheet').classList.add('active');
+}
+// Anteprima live nella tendina icona: emoji, foto, oppure — se nessuna delle due è stata scelta
+// — il colore della prima macrocategoria selezionata. Mai vuota e mai un'emoji a sorpresa.
+function renderIconLivePreview(){
+  const el = document.getElementById('icon-live-preview');
+  if(!el || !editorCtx) return;
+  if(editorCtx.tempImage){
+    el.style.backgroundImage = `url(${editorCtx.tempImage})`;
+    el.style.background = '';
+    el.textContent = '';
+  } else if(editorCtx.tempEmoji){
+    el.style.backgroundImage = 'none';
+    el.style.background = 'var(--olive-soft)';
+    el.textContent = editorCtx.tempEmoji;
+  } else {
+    el.style.backgroundImage = 'none';
+    el.textContent = '';
+    const primo = editorCtx.tempSettori[0];
+    el.style.background = primo !== undefined ? settori[primo].colore : 'var(--olive-soft)';
+  }
+}
+// La voce che apre la ricerca emoji mostra una piccola anteprima di cosa è selezionato ora
+// (l'emoji stessa, un'icona foto, o la lente di ricerca se non c'è nessuna emoji scelta).
+function refreshEmojiEntryPreview(){
+  const el = document.getElementById('emoji-entry-preview');
+  if(!el || !editorCtx) return;
+  el.textContent = editorCtx.tempImage ? '🖼️' : (editorCtx.tempEmoji || '🔍');
+}
+let currentEmojiSearch = '';
+function renderEmojiGrid(){
+  const grid = document.getElementById('emoji-grid');
+  grid.innerHTML = '';
+  const term = currentEmojiSearch.trim().toLowerCase();
+  const filtrate = term
+    ? emojiScelte.filter(em => (EMOJI_KEYWORDS[em] || '').toLowerCase().includes(term))
+    : emojiScelte;
+  document.getElementById('emoji-search-hint').style.display = (term && filtrate.length === 0) ? 'block' : 'none';
+  filtrate.forEach(em => {
+    const b = document.createElement('div');
+    b.className = 'emoji-opt' + (em === editorCtx.tempEmoji && !editorCtx.tempImage ? ' selected' : '');
+    b.textContent = em;
+    b.onclick = () => {
+      editorCtx.tempEmoji = em; editorCtx.tempImage = null;
+      document.getElementById('photo-opt-preview').style.backgroundImage = 'none';
+      document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      renderIconLivePreview();
+      refreshEmojiEntryPreview();
+    };
+    grid.appendChild(b);
+  });
+}
+function filterEmojiGrid(){
+  currentEmojiSearch = document.getElementById('emoji-search-input').value;
+  renderEmojiGrid();
+}
+function openEmojiPickerSheet(){
+  currentEmojiSearch = '';
+  document.getElementById('emoji-search-input').value = '';
+  renderEmojiGrid();
+  document.getElementById('emoji-picker-sheet').classList.add('active');
+}
+function closeEmojiPickerSheet(){
+  document.getElementById('emoji-picker-sheet').classList.remove('active');
+}
+// Fonte collegata: rispecchia la scelta del brief tra collegare l'intero profilo o solo
+// una selezione specifica di foto/post. Nel mock non cambia la griglia generata, ma la
+// scelta viene salvata sull'icona come lo sarebbe in produzione.
+function setFonte(f){
+  editorCtx.tempFonte = f;
+  document.getElementById('fonte-btn-profilo').classList.toggle('active', f === 'profilo');
+  document.getElementById('fonte-btn-selezione').classList.toggle('active', f === 'selezione');
+}
+function renderFonteButtons(){ setFonte(editorCtx.tempFonte); }
+// Stato collegamento (demo): simula il flusso di revoca del consenso descritto nel brief —
+// rilevamento, periodo di grazia "in sospeso" di 7 giorni, poi pulizia/rimozione.
+function refreshStatusUI(){
+  const isNew = editorCtx.iconIdx === null;
+  const pending = !isNew && !!pages[editorCtx.pageIdx][editorCtx.iconIdx].pending;
+  const hint = document.getElementById('icon-status-hint');
+  hint.textContent = isNew
+    ? 'Verrà collegata al salvataggio.'
+    : (pending
+        ? 'In sospeso: token di accesso non valido. Se non si ripristina entro 7 giorni, l\'icona verrà rimossa automaticamente.'
+        : 'Attivo — sincronizzato con il profilo collegato.');
+  document.getElementById('icon-revoke-btn').style.display = (isNew || pending) ? 'none' : 'block';
+  document.getElementById('icon-cleanup-btn').style.display = pending ? 'block' : 'none';
+}
+function simulateRevoke(){
+  if(!editorCtx || editorCtx.iconIdx === null) return;
+  pages[editorCtx.pageIdx][editorCtx.iconIdx].pending = true;
+  refreshStatusUI();
+  renderPages();
+  saveLayout();
+}
+function simulateCleanup(){
+  if(!editorCtx || editorCtx.iconIdx === null) return;
+  pages[editorCtx.pageIdx].splice(editorCtx.iconIdx, 1);
+  closeIconSheet();
+  renderPages();
+  saveLayout();
+}
+function renderTagChips(){
+  const row = document.getElementById('tag-chip-row');
+  row.innerHTML = '';
+  settori.forEach((s, idx) => {
+    const selected = editorCtx.tempSettori.includes(idx);
+    const atLimit = editorCtx.tempSettori.length >= 3 && !selected;
+    const chip = document.createElement('div');
+    chip.className = 'tag-chip' + (selected ? ' selected' : '') + (atLimit ? ' disabled' : '');
+    chip.innerHTML = `<span class="tc-dot" style="background:${s.colore}"></span>${s.nome}`;
+    chip.onclick = () => {
+      if(selected){
+        editorCtx.tempSettori = editorCtx.tempSettori.filter(x => x !== idx);
+        // Se si toglie un tag, le microcategorie di quel tag non hanno più senso come
+        // collegamento: si rimuovono insieme, non restano "orfane" e invisibili.
+        editorCtx.tempMicro = editorCtx.tempMicro.filter(key => Number(key.split('|')[0]) !== idx);
+      } else if(!atLimit){
+        editorCtx.tempSettori.push(idx);
+      } else {
+        return;
+      }
+      renderTagChips();
+      renderMicroChips();
+      renderIconLivePreview(); // il colore di default segue il primo tag scelto
+    };
+    row.appendChild(chip);
+  });
+  const hint = document.getElementById('tag-hint');
+  hint.style.color = '';
+  hint.textContent = editorCtx.tempSettori.length >= 3 ? 'Massimo 3 tag per icona.' : 'Scegli almeno un tag dal paniere (fino a 3).';
+}
+// Microcategorie delle macrocategorie scelte sopra, multi-selezionabili come collegamento
+// facoltativo e più mirato di quello a livello di intero settore.
+function renderMicroChips(){
+  const row = document.getElementById('micro-chip-row');
+  const hint = document.getElementById('micro-hint');
+  if(!row || !hint) return;
+  row.innerHTML = '';
+  if(editorCtx.tempSettori.length === 0){
+    hint.style.display = 'block';
+    return;
+  }
+  hint.style.display = 'none';
+  editorCtx.tempSettori.forEach(sIdx => {
+    microCategorie[sIdx].forEach((m, mIdx) => {
+      const key = sIdx + '|' + mIdx;
+      const chip = document.createElement('span');
+      chip.className = 'micro-chip-toggle' + (editorCtx.tempMicro.includes(key) ? ' selected' : '');
+      chip.style.background = microColore(sIdx, mIdx);
+      chip.textContent = m.nome;
+      chip.onclick = () => {
+        const i = editorCtx.tempMicro.indexOf(key);
+        if(i === -1) editorCtx.tempMicro.push(key); else editorCtx.tempMicro.splice(i, 1);
+        renderMicroChips();
+      };
+      row.appendChild(chip);
+    });
+  });
+}
+function onIconPhotoChosen(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    editorCtx.tempImage = reader.result;
+    document.getElementById('photo-opt-preview').style.backgroundImage = `url(${reader.result})`;
+    document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('selected'));
+    renderIconLivePreview();
+    refreshEmojiEntryPreview();
+  };
+  reader.readAsDataURL(file);
+}
+function closeIconSheet(){ document.getElementById('icon-sheet').classList.remove('active'); editorCtx = null; }
+function saveIconSheet(){
+  if(!editorCtx) return;
+  if(editorCtx.tempSettori.length === 0){
+    document.getElementById('tag-hint').textContent = 'Seleziona almeno un tag prima di salvare.';
+    document.getElementById('tag-hint').style.color = '#B23B3B';
+    return;
+  }
+  const titolo = document.getElementById('icon-title-input').value.trim() || 'Senza titolo';
+  let { pageIdx, iconIdx, tempEmoji, tempImage, tempSettori, tempMicro, tempFonte } = editorCtx;
+  const esistente = iconIdx !== null ? pages[pageIdx][iconIdx] : null;
+  const data = {
+    titolo, emoji: tempEmoji, image: tempImage, settori: [...tempSettori],
+    microcategorie: [...tempMicro], fonte: tempFonte,
+    // pending/boosted sono stati del collegamento, non campi modificabili dall'editor:
+    // si preservano da un salvataggio all'altro invece di essere persi.
+    pending: esistente ? !!esistente.pending : false,
+    boosted: esistente ? !!esistente.boosted : false,
+  };
+  if(iconIdx === null){
+    if(pages[pageIdx].length >= maxPerPage()){ pages.push([]); pageIdx = pages.length - 1; }
+    pages[pageIdx].push(data);
+  } else {
+    pages[pageIdx][iconIdx] = data;
+  }
+  closeIconSheet();
+  renderPages();
+  saveLayout();
+}
+
+// Quick actions: alternativa rapida alla modalità modifica per singole icone, richiamata con
+// una pressione prolungata (vedi renderPages). Stessa logica delle "azioni rapide" di iOS/Android
+// o dei long-press sui post nelle app social più diffuse.
+let quickCtx = null;
+function openQuickSheet(pageIdx, iconIdx){
+  quickCtx = { pageIdx, iconIdx };
+  const ic = pages[pageIdx][iconIdx];
+  document.getElementById('quick-sheet-title').textContent = ic.titolo;
+  const list = document.getElementById('quick-action-list');
+  list.innerHTML = '';
+  const actions = [
+    { label:'Apri', fn: () => { closeQuickSheet(); openTag(ic.settori[0]); } },
+    { label:'Modifica', fn: () => { closeQuickSheet(); openIconSheet(pageIdx, iconIdx); } },
+    { label:'Sposta in cima alla pagina', fn: () => moveTileToTop(pageIdx, iconIdx) },
+    { label:'Elimina', danger:true, fn: () => deleteTileQuick(pageIdx, iconIdx) },
+  ];
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'quick-action-item' + (a.danger ? ' danger' : '');
+    b.textContent = a.label;
+    b.onclick = a.fn;
+    list.appendChild(b);
+  });
+  document.getElementById('quick-sheet').classList.add('active');
+}
+function closeQuickSheet(){ document.getElementById('quick-sheet').classList.remove('active'); quickCtx = null; }
+function moveTileToTop(pageIdx, iconIdx){
+  const arr = pages[pageIdx];
+  const [item] = arr.splice(iconIdx, 1);
+  arr.unshift(item);
+  closeQuickSheet();
+  renderPages();
+  saveLayout();
+}
+function deleteTileQuick(pageIdx, iconIdx){
+  pages[pageIdx].splice(iconIdx, 1);
+  closeQuickSheet();
+  renderPages();
+  saveLayout();
+}
+
+// --- Pannelli a tendina stile iPhone (sostituiscono il vecchio menu a tre linee) ---
+// Due "stop": compatto (come prima) e schermo intero, per dare più aria a tutti i dettagli.
+// Si resetta sempre a compatto alla chiusura, cosi' la prossima apertura riparte dallo stesso stato.
+function closeTopPanels(){
+  document.getElementById('panel-aspetto').classList.remove('active', 'full');
+  document.getElementById('panel-navsessione').classList.remove('active', 'full');
+  document.getElementById('top-panel-bg').classList.remove('active');
+}
+function openTopPanel(name){
+  closeTopPanels();
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('top-panel-bg').classList.add('active');
+}
+function expandTopPanel(name){ document.getElementById('panel-' + name).classList.add('full'); }
+function collapseTopPanel(name){ document.getElementById('panel-' + name).classList.remove('full'); }
+function openNotaSheet(){ document.getElementById('nota-sheet').classList.add('active'); }
+function closeNotaSheet(){ document.getElementById('nota-sheet').classList.remove('active'); }
+
+// Difetto corretto: chiudere una scheda (es. "Chiudi" nella ricerca, vicino al bordo basso)
+// poteva far scattare anche il gesto/tap dell'angolo o del bordo inferiore, aprendo per sbaglio
+// un'altra scheda (es. "nota su di te") proprio mentre se ne chiudeva un'altra. I gesti/tap
+// della home restano validi solo quando NON c'è già una scheda a comparsa aperta sopra di essa
+// (i due pannelli Aspetto/Navigazione restano invece esclusi da questo controllo, perché il
+// tap-ciclo deve poter continuare a funzionare su loro stessi anche da aperti).
+function homeGestureBlocked(){
+  return ['search-sheet','icon-sheet','packs-sheet','confirm-sheet','frame-sheet','quick-sheet','emoji-picker-sheet'].some(id => {
+    const el = document.getElementById(id);
+    return el && el.classList.contains('active');
+  });
+}
+
+// Swipe-down dall'angolo in alto a sinistra → Aspetto, dall'angolo in alto a destra →
+// Navigazione e Sessione: come Notification Center / Control Center su iPhone, sostituiscono
+// il vecchio tasto a tre linee. Attivi solo dalla home, per non entrare in conflitto con lo
+// swipe-back orizzontale (che invece vive in griglia/schermo intero — vedi initEdgeSwipeBack).
+(function initTopPanelGestures(){
+  const screenEl = document.getElementById('screen');
+  // EDGE = 50 (non più 30): i due pulsanti glass-corner-hint sono visivamente alti 28px a partire
+  // da 14px dal bordo dello schermo (cioè arrivano fino a 42px) — con EDGE a 30 la metà inferiore
+  // del pulsante cadeva già fuori dalla zona attiva ("pigio sul pulsante non si attiva, pigio
+  // accanto si attiva"). 50px copre l'intero pulsante con un margine di rispetto.
+  const EDGE = 50, THRESHOLD = 70, FULL_THRESHOLD = 220, TAP_MOVE = 8;
+  let dragging = false, panelEl = null, startX = 0, startY = 0;
+  screenEl.addEventListener('pointerdown', (e) => {
+    if(!document.getElementById('home').classList.contains('active')) return;
+    if(e.target.closest('.done-chip')) return;
+    if(homeGestureBlocked()) return;
+    const rect = screenEl.getBoundingClientRect();
+    if(e.clientY - rect.top > EDGE) return;
+    const side = (e.clientX - rect.left) < rect.width / 2 ? 'aspetto' : 'navsessione';
+    panelEl = document.getElementById('panel-' + side);
+    dragging = true; startX = e.clientX; startY = e.clientY;
+    panelEl.classList.add('dragging');
+    document.getElementById('top-panel-bg').classList.add('active');
+    if(screenEl.setPointerCapture){ try { screenEl.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  screenEl.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    const dy = Math.max(0, e.clientY - startY);
+    const rect = panelEl.getBoundingClientRect();
+    const h = rect.height || 400;
+    const progress = Math.min(1, dy / h);
+    panelEl.style.transform = `translateY(${-100 + progress * 100}%)`;
+  });
+  // "Basta pigiare": un semplice tap (senza trascinamento apprezzabile) nella zona dell'angolo
+  // fa avanzare il pannello in un ciclo chiuso→compatto→schermo intero→chiuso, senza bisogno
+  // di trascinare per forza — il trascinamento resta comunque disponibile come alternativa.
+  function cycleTap(el, side){
+    const isActive = el.classList.contains('active');
+    const isFull = el.classList.contains('full');
+    if(!isActive){
+      closeTopPanels();
+      el.classList.add('active');
+      document.getElementById('top-panel-bg').classList.add('active');
+    } else if(!isFull){
+      expandTopPanel(side);
+    } else {
+      closeTopPanels();
+    }
+  }
+  function endDrag(e){
+    if(!dragging) return;
+    dragging = false;
+    const dy = Math.max(0, e.clientY - startY);
+    const totalMove = Math.hypot(e.clientX - startX, e.clientY - startY);
+    const side = panelEl.id === 'panel-aspetto' ? 'aspetto' : 'navsessione';
+    panelEl.classList.remove('dragging');
+    panelEl.style.transform = '';
+    if(totalMove < TAP_MOVE){
+      cycleTap(panelEl, side);
+    } else if(dy > FULL_THRESHOLD){
+      // Un trascinamento molto deciso apre direttamente a schermo intero, saltando lo stop
+      // intermedio — "anche se li tiri giù da parte diverse".
+      closeTopPanels();
+      panelEl.classList.add('active');
+      expandTopPanel(side);
+      document.getElementById('top-panel-bg').classList.add('active');
+    } else if(dy > THRESHOLD){
+      closeTopPanels();
+      panelEl.classList.add('active');
+      document.getElementById('top-panel-bg').classList.add('active');
+    } else {
+      panelEl.classList.remove('active');
+      if(!document.getElementById('panel-aspetto').classList.contains('active') && !document.getElementById('panel-navsessione').classList.contains('active')){
+        document.getElementById('top-panel-bg').classList.remove('active');
+      }
+    }
+    panelEl = null;
+  }
+  screenEl.addEventListener('pointerup', endDrag);
+  screenEl.addEventListener('pointercancel', endDrag);
+})();
+
+// Trascinare l'header di un pannello già aperto: verso l'alto lo richiude (o lo riporta
+// compatto se era a schermo intero); verso il basso, oltre la prima fermata compatta, lo
+// estende a schermo intero — il secondo "stop" richiesto, per dare aria a tutti i dettagli.
+(function initTopPanelHeaderDrag(){
+  ['panel-aspetto', 'panel-navsessione'].forEach(id => {
+    const panelEl = document.getElementById(id);
+    const headerEl = panelEl.querySelector('.top-panel-header');
+    const side = id === 'panel-aspetto' ? 'aspetto' : 'navsessione';
+    let dragging = false, currentDy = 0, wasFull = false, startY = 0;
+    headerEl.addEventListener('pointerdown', (e) => {
+      if(e.target.closest('button')) return;
+      dragging = true; startY = e.clientY; currentDy = 0;
+      wasFull = panelEl.classList.contains('full');
+      panelEl.classList.add('dragging');
+      if(headerEl.setPointerCapture){ try { headerEl.setPointerCapture(e.pointerId); } catch(err){} }
+    });
+    headerEl.addEventListener('pointermove', (e) => {
+      if(!dragging) return;
+      let dy = e.clientY - startY;
+      if(wasFull) dy = Math.min(0, dy); // da schermo intero si trascina solo verso l'alto
+      currentDy = dy;
+      panelEl.style.transform = `translateY(${dy}px)`;
+    });
+    function endDrag(){
+      if(!dragging) return;
+      dragging = false;
+      panelEl.classList.remove('dragging');
+      panelEl.style.transform = '';
+      const h = panelEl.offsetHeight || 400;
+      if(wasFull){
+        if(currentDy < -h * 0.35) closeTopPanels();
+        else if(currentDy < -50) collapseTopPanel(side);
+      } else {
+        if(currentDy > 50) expandTopPanel(side);
+        else if(currentDy < -(h * 0.25)) closeTopPanels();
+      }
+      currentDy = 0;
+    }
+    headerEl.addEventListener('pointerup', endDrag);
+    headerEl.addEventListener('pointercancel', endDrag);
+  });
+})();
+
+// Swipe-up dal bordo inferiore → "Nota su di te": nessun tasto visibile, solo il gesto (e la
+// piccola maniglietta home-indicator come indizio), coerente con la natura volutamente discreta
+// di questa funzione. Attivo solo dalla home.
+(function initBottomSwipeUp(){
+  const screenEl = document.getElementById('screen');
+  const EDGE = 30, THRESHOLD = 70, TAP_MOVE = 8;
+  let dragging = false, startX = 0, startY = 0;
+  screenEl.addEventListener('pointerdown', (e) => {
+    if(!document.getElementById('home').classList.contains('active')) return;
+    if(homeGestureBlocked()) return;
+    const rect = screenEl.getBoundingClientRect();
+    if(rect.bottom - e.clientY > EDGE) return;
+    dragging = true; startX = e.clientX; startY = e.clientY;
+    const wrap = document.getElementById('nota-sheet');
+    wrap.classList.add('dragging');
+    wrap.querySelector('.sheet-card').style.transform = 'translateY(100%)';
+    if(screenEl.setPointerCapture){ try { screenEl.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  screenEl.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    const dy = Math.max(0, startY - e.clientY);
+    const sheet = document.getElementById('nota-sheet').querySelector('.sheet-card');
+    const h = sheet.getBoundingClientRect().height || 400;
+    const progress = Math.min(1, dy / h);
+    sheet.style.transform = `translateY(${100 - progress * 100}%)`;
+  });
+  // "Stessa cosa si verifica per gli spunti da sotto": anche qui basta un tap nella zona per
+  // aprire (o richiudere, se già aperta) la nota — il trascinamento resta un'alternativa.
+  function endDrag(e){
+    if(!dragging) return;
+    dragging = false;
+    const dy = Math.max(0, startY - e.clientY);
+    const totalMove = Math.hypot(e.clientX - startX, e.clientY - startY);
+    const wrap = document.getElementById('nota-sheet');
+    const sheet = wrap.querySelector('.sheet-card');
+    wrap.classList.remove('dragging');
+    sheet.style.transform = '';
+    if(totalMove < TAP_MOVE){
+      if(wrap.classList.contains('active')) closeNotaSheet();
+      else openNotaSheet();
+    } else if(dy > THRESHOLD){
+      openNotaSheet();
+    }
+  }
+  screenEl.addEventListener('pointerup', endDrag);
+  screenEl.addEventListener('pointercancel', endDrag);
+})();
+
+const wallpaperBase = [
+  { id:'base1', value:'#F6F3EC' }, { id:'base2', value:'#E7E2D3' }, { id:'base3', value:'#E9E4EF' }, { id:'base4', value:'#22252A' },
+];
+let downloadedWallpapers = [];
+let activeWallpaperId = 'base1';
+// Sfondo caricato dall'utente (via applyFrame): a differenza degli swatch/pacchetti, non ha un
+// id nel catalogo — si conserva qui il data-URL stesso per poterlo ripristinare al posto dello
+// swatch attivo (vedi saveLayout/loadLayoutState). Nullo quando è selezionato uno swatch normale.
+let customWallpaperDataUrl = null;
+function renderWallpaperRow(){
+  const row = document.getElementById('wallpaper-row');
+  row.innerHTML = '';
+  [...wallpaperBase, ...downloadedWallpapers].forEach(w => {
+    const bg = w.preview || w.value;
+    const el = document.createElement('div');
+    el.className = 'wp-swatch' + (w.id === activeWallpaperId ? ' active' : '');
+    el.style.background = bg;
+    el.onclick = () => setWallpaper(bg, w.id, el);
+    row.appendChild(el);
+  });
+}
+function setWallpaper(bg, id, el){
+  activeWallpaperId = id;
+  customWallpaperDataUrl = null; // uno swatch normale sostituisce sempre un'eventuale foto caricata
+  document.getElementById('screen').style.backgroundImage = 'none';
+  document.getElementById('screen').style.background = bg;
+  document.querySelectorAll('.wp-swatch').forEach(s=>s.classList.remove('active'));
+  if(el) el.classList.add('active');
+  saveLayout();
+}
+renderWallpaperRow();
+function openConfirmSheet(){ document.getElementById('confirm-sheet').classList.add('active'); }
+function closeConfirmSheet(){ document.getElementById('confirm-sheet').classList.remove('active'); }
+function confirmPhotoAccess(){ closeConfirmSheet(); document.getElementById('file-input').click(); }
+function onFileChosen(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  // Prima di applicare la foto come sfondo, si passa sempre dall'inquadratura: l'utente
+  // sceglie posizione e ingrandimento, invece di ritrovarsi uno sfondo tagliato a caso.
+  reader.onload = () => { openFrameSheet(reader.result); };
+  reader.readAsDataURL(file);
+}
+
+let frameImageData = null, frameX = 50, frameY = 50, frameZoom = 100;
+function openFrameSheet(dataUrl){
+  frameImageData = dataUrl; frameX = 50; frameY = 50; frameZoom = 100;
+  document.getElementById('frame-zoom').value = 100;
+  updateFramePreview();
+  document.getElementById('frame-sheet').classList.add('active');
+}
+function updateFramePreview(){
+  const prev = document.getElementById('frame-preview');
+  prev.style.backgroundImage = `url(${frameImageData})`;
+  prev.style.backgroundSize = frameZoom + '%';
+  prev.style.backgroundPosition = frameX + '% ' + frameY + '%';
+}
+function updateFrameZoom(v){ frameZoom = parseInt(v); updateFramePreview(); }
+function closeFrameSheet(){ document.getElementById('frame-sheet').classList.remove('active'); frameImageData = null; }
+function applyFrame(){
+  if(!frameImageData) return;
+  document.getElementById('screen').style.background = 'none';
+  document.getElementById('screen').style.backgroundImage = `url(${frameImageData})`;
+  document.getElementById('screen').style.backgroundSize = frameZoom + '%';
+  document.getElementById('screen').style.backgroundPosition = frameX + '% ' + frameY + '%';
+  document.querySelectorAll('.wp-swatch').forEach(s=>s.classList.remove('active'));
+  customWallpaperDataUrl = frameImageData;
+  activeWallpaperId = null;
+  saveLayout();
+  closeFrameSheet();
+}
+// Trascinamento nell'anteprima per riposizionare l'inquadratura: stessa logica pointer-events
+// usata per l'orologio e la tendina, con le coordinate convertite in percentuale rispetto alla
+// dimensione dell'anteprima stessa (coerente con background-position in %).
+(function initFrameDrag(){
+  const prev = document.getElementById('frame-preview');
+  let dragging = false, startX = 0, startY = 0, baseX = 50, baseY = 50;
+  prev.addEventListener('pointerdown', (e) => {
+    dragging = true; startX = e.clientX; startY = e.clientY; baseX = frameX; baseY = frameY;
+    if(prev.setPointerCapture) { try { prev.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  prev.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    const rect = prev.getBoundingClientRect();
+    const w = rect.width || 1, h = rect.height || 1;
+    const dx = (e.clientX - startX) / w * 100;
+    const dy = (e.clientY - startY) / h * 100;
+    frameX = Math.min(100, Math.max(0, baseX - dx));
+    frameY = Math.min(100, Math.max(0, baseY - dy));
+    updateFramePreview();
+  });
+  function endDrag(){ dragging = false; }
+  prev.addEventListener('pointerup', endDrag);
+  prev.addEventListener('pointercancel', endDrag);
+})();
+
+// Swipe-back dal bordo sinistro (come iOS e la maggior parte delle app social): un trascinamento
+// che parte a ridosso del bordo torna indietro — griglia di un tag → home, schermo intero → griglia —
+// seguendo il dito in tempo reale invece di scattare di colpo. Stessa famiglia di gesture del
+// drag dell'orologio e della tendina, solo ancorata al bordo invece che a una maniglietta.
+(function initEdgeSwipeBack(){
+  const screenEl = document.getElementById('screen');
+  let dragging = false, active = null, viewEl = null, startX = 0;
+  function tryStart(clientX){
+    const rect = screenEl.getBoundingClientRect();
+    if(clientX - rect.left > 24) return false;
+    const fs = document.getElementById('fullscreen');
+    const tv = document.getElementById('tagview');
+    if(fs.classList.contains('active')){ active = 'fullscreen'; viewEl = fs; }
+    else if(tv.classList.contains('active')){ active = 'tagview'; viewEl = tv; }
+    else return false;
+    dragging = true; startX = clientX;
+    viewEl.style.transition = 'none';
+    return true;
+  }
+  function moveTo(clientX){
+    if(!dragging) return;
+    const dx = Math.max(0, clientX - startX);
+    viewEl.style.transform = `translateX(${dx}px)`;
+  }
+  function finish(clientX){
+    if(!dragging) return;
+    dragging = false;
+    const dx = Math.max(0, clientX - startX);
+    viewEl.style.transition = 'transform .25s ease';
+    viewEl.style.transform = '';
+    if(dx > 90){
+      if(active === 'fullscreen') closeFullscreen();
+      else if(active === 'tagview') goHome();
+    }
+    active = null; viewEl = null;
+  }
+  screenEl.addEventListener('pointerdown', (e) => {
+    if(tryStart(e.clientX) && screenEl.setPointerCapture){ try { screenEl.setPointerCapture(e.pointerId); } catch(err){} }
+  });
+  screenEl.addEventListener('pointermove', (e) => moveTo(e.clientX));
+  screenEl.addEventListener('pointerup', (e) => finish(e.clientX));
+  screenEl.addEventListener('pointercancel', (e) => finish(e.clientX));
+})();
+
+let maxCredits = 3, credits = 3;
+function updateCrediti(v){ maxCredits = parseInt(v); document.getElementById('crediti-val').textContent = v; saveLayout(); }
+function renderCredits(){
+  const box = document.getElementById('credit-dots'); box.innerHTML = '';
+  for(let i=0;i<maxCredits;i++){ const d = document.createElement('div'); d.className = 'credit-dot' + (i < (maxCredits-credits) ? ' used' : ''); box.appendChild(d); }
+  const refreshBtn = document.getElementById('grid-refresh-btn');
+  if(refreshBtn) refreshBtn.disabled = credits <= 0;
+}
+
+let currentTagIdx = 0;
+let currentGridPage = 0;
+// La griglia a 9 è organizzata in PAGINE: ogni refreshWholeGrid aggiunge una nuova pagina (una
+// nuova versione per tutte e 9 le microcategorie insieme, sempre in lockstep — vedi
+// refreshWholeGrid), senza mai cancellare le pagine precedenti. renderGridPages ricostruisce
+// l'intero carosello di pagine da zero: serve sia alla prima apertura di un tag sia per
+// ridisegnare tutto dopo un refresh. scrollToLast (default true) porta subito all'ultima pagina
+// generata, cioè quella appena refreshata.
+function renderGridPages(idx, scrollToLast = true){
+  const s = settori[idx];
+  document.getElementById('tv-dot').style.background = s.colore;
+  document.getElementById('tv-title').textContent = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+  const microList = microCategorie[idx];
+  const count = microList.length; // una porzione per ciascuna microcategoria del settore
+  document.getElementById('tv-sub').textContent = count + ' spunti in questo tag';
+
+  // Genera (se manca) la versione 0 per ognuna delle 9, poi il numero di pagine è semplicemente
+  // il numero di versioni — sempre uguale per tutte e 9, dato che refreshWholeGrid le avanza
+  // tutte insieme in un solo colpo.
+  for(let microIdx=0; microIdx<count; microIdx++){
+    ensureVersionGenesis(idx + '|' + microIdx, s.nome + microIdx);
+  }
+  const totalPages = microVersions.get(idx + '|0').length;
+
+  const pagesEl = document.getElementById('grid-pages');
+  pagesEl.innerHTML = '';
+  for(let p=0; p<totalPages; p++){
+    const pageEl = document.createElement('div');
+    pageEl.className = 'grid-page';
+    const gridEl = document.createElement('div');
+    gridEl.className = 'photo-grid';
+    // Il grid/page viene agganciato SUBITO al documento (prima di riempirlo con le tile), non alla
+    // fine del ciclo: se una tile ha già un entry.result in cache, applyRealImageToTile la applica
+    // in modo sincrono, nello stesso istante in cui viene creata. Il suo controllo interno
+    // "document.body.contains(el)" deve trovare la tile già collegata all'albero del documento,
+    // altrimenti (bug corretto) scarta per errore anche le foto già risolte in precedenza,
+    // lasciando il segnaposto bloccato a schermo finché non si tenta un nuovo refresh.
+    pageEl.appendChild(gridEl);
+    pagesEl.appendChild(pageEl);
+    for(let microIdx=0; microIdx<count; microIdx++){
+      const key = idx + '|' + microIdx;
+      const versions = microVersions.get(key);
+      const entry = versions[p];
+      const el = document.createElement('div');
+      el.className = 'photo';
+      el.style.backgroundImage = `url(https://picsum.photos/seed/${entry.seed}/300/300)`;
+      el.onclick = () => openFullscreen(entry.seed, s, microIdx, p);
+      gridEl.appendChild(el);
+      if(entry.result){
+        // Versione già risolta in precedenza (pagina già vista prima): nessuna nuova richiesta di
+        // rete, si applica subito.
+        applyRealImageToTile(el, entry.result);
+      } else {
+        // Varianti in cascata (vedi microQueryVariants): parole chiave specifiche della
+        // microcategoria, poi il nome italiano, poi il tema ampio del settore come ultima rete.
+        // Sulla genesi (pagina 0) si passa dalla cache (resolveRealImage); su una pagina nata da
+        // un refresh si vuole invece sempre un risultato nuovo (fetchFreshRealImage).
+        const fetchPromise = p === 0
+          ? resolveRealImage(idx, microIdx, microQueryVariants(idx, microIdx))
+          : fetchFreshRealImage(idx, microIdx, p);
+        // Bug corretto: prima, se nel frattempo si cambiava scheda/tag prima che il risultato
+        // arrivasse, la riga "!document.body.contains(el)" scartava il risultato per intero,
+        // senza mai salvarlo su entry.result — tornando su quella pagina si ripartiva sempre da
+        // zero (fetchFreshRealImage non ha cache), e riaprendo/richiudendo schede in fretta la
+        // foto restava bloccata sul segnaposto a tempo indeterminato. Ora il risultato si salva
+        // SEMPRE su entry.result appena arriva (persiste per ogni futura visita di quella pagina,
+        // senza rifare la richiesta di rete); solo l'aggiornamento della vista corrente è
+        // condizionato alla tile essere ancora a schermo (applyRealImageToTile lo verifica già).
+        fetchPromise.then(result => {
+          if(!result) return;
+          entry.result = result;
+          applyRealImageToTile(el, result);
+          saveSession();
+        });
+      }
+    }
+  }
+
+  renderGridPageDots(totalPages);
+  scrollGridToPage(scrollToLast ? totalPages - 1 : Math.min(currentGridPage, totalPages - 1), true);
+}
+// Pallini sotto la griglia: uno per pagina di refresh, stesso linguaggio dei page-dot della home.
+// Un tap salta subito a quella pagina, senza dover scorrere.
+function renderGridPageDots(totalPages){
+  const box = document.getElementById('grid-page-dots');
+  if(!box) return;
+  box.innerHTML = '';
+  for(let p=0; p<totalPages; p++){
+    const d = document.createElement('button');
+    d.className = 'grid-page-dot' + (p === currentGridPage ? ' active' : '');
+    d.setAttribute('aria-label', 'Pagina di refresh ' + (p + 1) + ' di ' + totalPages);
+    d.onclick = () => scrollGridToPage(p);
+    box.appendChild(d);
+  }
+}
+function scrollGridToPage(p, instant){
+  const pagesEl = document.getElementById('grid-pages');
+  if(!pagesEl) return;
+  currentGridPage = p;
+  pagesEl.scrollTo({ left: p * pagesEl.clientWidth, behavior: instant ? 'auto' : 'smooth' });
+  renderGridPageDots(pagesEl.children.length);
+}
+// Scorrimento manuale (swipe/trackpad) sulla griglia: aggiorna solo quale pagina di refresh è
+// "corrente" e i pallini — non cambia mai microcategoria (quello succede solo nello schermo
+// intero, vedi navigateMicro, gestito altrove e rimasto invariato).
+document.getElementById('grid-pages').addEventListener('scroll', function(){
+  const p = Math.round(this.scrollLeft / (this.clientWidth || 1));
+  if(p !== currentGridPage){ currentGridPage = p; renderGridPageDots(this.children.length); }
+});
+function openTag(idx){
+  currentTagIdx = idx;
+  credits = maxCredits; renderCredits();
+  // Bug corretto: tagview va reso visibile PRIMA di renderGridPages, non dopo. Lo scroll
+  // automatico all'ultima pagina (vedi scrollGridToPage) legge clientWidth del contenitore: se
+  // #tagview è ancora display:none in quel momento, clientWidth è 0 e lo scroll calcolato resta
+  // sempre 0 — la griglia mostrava la pagina 0 mentre il pallino attivo segnalava l'ultima,
+  // disallineati, ogni volta che si riapriva un tag già refreshato in precedenza.
+  document.getElementById('home').classList.remove('active');
+  document.getElementById('tagview').classList.add('active');
+  renderGridPages(idx);
+  lastCreditsInfo = { idx };
+  sessionTagsVisitati.add(idx);
+  refreshWidgetTiles();
+  renderVisitedRow();
+  saveSession();
+}
+function goHome(){ document.getElementById('tagview').classList.remove('active'); document.getElementById('home').classList.add('active'); }
+
+// Comprime/espande il pannello di gestione sessione sotto la griglia a 9 (refresh, microcategorie
+// esplorate, versioni conservate, organizzazione) — segnalato dal pulsante glass sopra di esso.
+let sessionPanelCollapsed = false;
+function toggleSessionPanel(){
+  sessionPanelCollapsed = !sessionPanelCollapsed;
+  document.getElementById('session-management').classList.toggle('collapsed', sessionPanelCollapsed);
+  const chevron = document.getElementById('session-toggle-chevron');
+  if(chevron) chevron.style.transform = sessionPanelCollapsed ? 'rotate(-90deg)' : '';
+}
+
+// Lo swipe laterale sulla griglia non cambia più macrocategoria: resta sempre nel tag aperto e
+// sfoglia le sue microcategorie, aprendo direttamente la porzione successiva a schermo intero.
+// Cambiare macrocategoria resta possibile solo tramite ricerca o chip (mai con lo swipe). Le 9
+// microcategorie restano ordinate per affinità cromatica (`sfumatura`, la stessa usata dal
+// pannello organizza — vedi renderOrganizePanel), ma lo swipe NON avanza di una posizione alla
+// volta in quell'ordine: saltare al vicino più simile per colore si sentiva come "non cambia
+// niente". Si avanza invece con un passo più largo (vedi coprimeStride) che tocca una
+// microcategoria sensibilmente più diversa a ogni gesto, pur restando un ciclo reversibile che
+// copre tutte e 9 le posizioni prima di ripetersi — nessuna viene mai saltata del tutto. Restando
+// sempre confinato alla stessa macrocategoria, questo swipe è ora completamente libero e senza
+// limiti: nessun credito viene mai speso per cambiare microcategoria (vedi invece il refresh dei
+// contenuti più sotto, che è l'unica azione a consumare la risorsa "refresh disponibili").
+function sortedMicroIndices(settoreIdx){
+  const list = microCategorie[settoreIdx];
+  return list.map((m, i) => i).sort((a, b) => list[a].sfumatura - list[b].sfumatura);
+}
+// Sceglie un passo (stride) attorno a n/3, il più piccolo coprimo con n: applicato ripetutamente
+// visita tutte le n posizioni esattamente una volta prima di ripartire dalla prima, ma ogni
+// singolo salto copre più terreno di un semplice +1 — la variante discreta di "mischiare" un
+// mazzo restando comunque deterministico e reversibile (swipe opposto = passo opposto).
+function coprimeStride(n){
+  function gcd(a, b){ return b === 0 ? a : gcd(b, a % b); }
+  let s = Math.max(2, Math.round(n / 3));
+  while(gcd(s, n) !== 1) s++;
+  return s;
+}
+function shakeCreditsRow(){
+  const row = document.getElementById('credits-row');
+  if(!row) return;
+  row.classList.remove('empty');
+  void row.offsetWidth; // forza il reflow così l'animazione riparte anche se già innescata prima
+  row.classList.add('empty');
+}
+// Nessun consumo di crediti/refresh qui: lo swipe laterale tra microcategorie della stessa
+// macrocategoria è sempre libero e illimitato, proprio perché resta un movimento "chiuso" (non
+// può mai portare fuori dalla macro aperta). La risorsa "refresh disponibili" (vedi credits/
+// maxCredits) si consuma solo con refreshWholeGrid, sull'intera griglia, mai qui.
+// Bug corretto: non passando mai forcedVersionIdx, ogni salto ad un'altra microcategoria apriva
+// sempre la sua ULTIMA pagina (openFullscreen di default mostra l'ultima versione), anche se si
+// stava sfogliando una pagina più vecchia — sembrava un salto "alla griglia appena caricata"
+// invece di restare dentro la stessa pagina. Ora si resta sulla stessa pagina (lastDiscovery.vIdx,
+// la versione della microcategoria da cui si parte) finché esiste per la nuova microcategoria —
+// le due avanzano comunque sempre in lockstep (vedi refreshWholeGrid), quindi il numero di pagine
+// disponibili è identico per tutte e 9.
+function navigateMicro(direction){
+  const sIdx = currentTagIdx;
+  const order = sortedMicroIndices(sIdx);
+  const stride = coprimeStride(order.length);
+  let pos = 0;
+  let vIdx = undefined;
+  if(lastDiscovery && lastDiscovery.idx === sIdx && lastDiscovery.microIdx !== undefined && lastDiscovery.microIdx !== null){
+    const found = order.indexOf(lastDiscovery.microIdx);
+    if(found !== -1) pos = found;
+    vIdx = lastDiscovery.vIdx;
+  }
+  pos = (pos + direction * stride + order.length) % order.length;
+  const microIdx = order[pos];
+  const s = settori[sIdx];
+  const targetVersions = microVersions.get(sIdx + '|' + microIdx);
+  if(vIdx !== undefined && targetVersions) vIdx = Math.min(vIdx, targetVersions.length - 1);
+  const seed = s.nome + microIdx;
+  openFullscreen(seed, s, microIdx, vIdx);
+  saveSession();
+}
+
+// Porzioni aperte in sessione, per microcategoria (settoreIdx+microIdx). Alimenta sia i chip
+// espansi sotto i crediti sia il pannello "organizza per macrocategoria" più sotto.
+let sessionMicroVisitati = new Set();
+let organizeSortMode = 'alfa'; // 'alfa' | 'colore'
+
+// Cronologia delle versioni per microcategoria (settoreIdx+microIdx): la versione 0 è quella
+// mostrata alla prima apertura (griglia o swipe), le successive nascono tutte insieme da un
+// refresh dell'intera griglia (vedi refreshWholeGrid) — l'indice di versione coincide quindi con
+// l'indice di PAGINA mostrato da renderGridPages, dato che tutte e 9 le microcategorie avanzano
+// sempre insieme. Il refresh NON sostituisce/cancella mai una versione precedente — si comporta
+// come l'"aggiornare" richiesto (un numero di refresh consumati, non come le storie di Instagram
+// che spariscono): tutte restano qui, conservate e raggiungibili come pagine scorribili sopra la
+// griglia (vedi renderGridPages / renderGridPageDots).
+let microVersions = new Map(); // "sIdx|mIdx" -> [{seed, result:null|{url,credit,pageUrl,excerpt}}]
+function ensureVersionGenesis(key, seed){
+  if(!microVersions.has(key)) microVersions.set(key, [{ seed, result: null }]);
+}
+
+// Riga di chip: ora una per MICROcategoria aperta (numero molto più alto dei soli 7 macro-tag),
+// come richiesto — un tap riporta comunque al tag macro corrispondente, gratis e senza vincolo
+// di adiacenza, riusando lo stesso meccanismo "sempre navigabile" di openTagRevisit.
+function renderVisitedRow(){
+  const box = document.getElementById('visited-row');
+  if(!box) return;
+  if(sessionMicroVisitati.size === 0){ box.innerHTML = ''; return; }
+  const chips = [...sessionMicroVisitati].map(key => {
+    const [sIdx, mIdx] = key.split('|').map(Number);
+    const m = microCategorie[sIdx][mIdx];
+    const isCurrent = sIdx === currentTagIdx;
+    return `<div class="visited-chip${isCurrent ? ' current' : ''}" style="background:${microColore(sIdx, mIdx)}" title="${m.nome}" onclick="openTagRevisit(${sIdx})">${m.nome.charAt(0).toUpperCase()}</div>`;
+  }).join('');
+  box.innerHTML = `<p class="hint" style="margin:10px 0 6px;">Microcategorie esplorate in questa sessione — sempre raggiungibili:</p><div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>`;
+}
+function openTagRevisit(idx){
+  currentTagIdx = idx;
+  renderGridPages(idx);
+  lastCreditsInfo = { idx };
+  refreshWidgetTiles();
+  renderVisitedRow();
+  renderOrganizePanel();
+}
+
+// Pannello "organizza le porzioni aperte": raggruppa per macrocategoria (settore), con le
+// microcategorie al suo interno ordinabili alfabeticamente o per "somiglianza cromatica" —
+// qui semplicemente la sfumatura (Livello 2 del brief), così le tonalità vicine restano vicine.
+function setSortMode(mode){
+  organizeSortMode = mode;
+  document.getElementById('sort-btn-alfa').classList.toggle('active', mode === 'alfa');
+  document.getElementById('sort-btn-colore').classList.toggle('active', mode === 'colore');
+  renderOrganizePanel();
+}
+function renderOrganizePanel(){
+  const box = document.getElementById('organize-groups');
+  if(!box) return;
+  box.innerHTML = '';
+  const groups = {};
+  sessionMicroVisitati.forEach(key => {
+    const [sIdx, mIdx] = key.split('|').map(Number);
+    if(!groups[sIdx]) groups[sIdx] = [];
+    if(!groups[sIdx].includes(mIdx)) groups[sIdx].push(mIdx);
+  });
+  const sIdxList = Object.keys(groups).map(Number).sort((a, b) => a - b);
+  if(sIdxList.length === 0){
+    box.innerHTML = '<p class="hint">Apri qualche spunto per iniziare a popolare questa vista.</p>';
+    return;
+  }
+  sIdxList.forEach(sIdx => {
+    const s = settori[sIdx];
+    const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+    const micros = groups[sIdx].map(mIdx => ({ mIdx, m: microCategorie[sIdx][mIdx] }));
+    if(organizeSortMode === 'alfa') micros.sort((a, b) => a.m.nome.localeCompare(b.m.nome));
+    else micros.sort((a, b) => a.m.sfumatura - b.m.sfumatura);
+    const chips = micros.map(({ mIdx, m }) => `<span class="org-micro-chip" style="background:${microColore(sIdx, mIdx)}">${m.nome}</span>`).join('');
+    const groupEl = document.createElement('div');
+    groupEl.className = 'org-group';
+    groupEl.innerHTML = `<div class="org-group-header"><div class="tag-dot" style="width:10px;height:10px;background:${s.colore}"></div><span>${nome}</span></div><div class="org-micro-row">${chips}</div>`;
+    box.appendChild(groupEl);
+  });
+}
+renderOrganizePanel();
+
+// --- Qualità delle immagini: sostituzione live dei placeholder con foto reali di pubblico
+// dominio (diritti decaduti), quando possibile ---
+// Ogni placeholder picsum.photos è mostrato subito (la griglia non aspetta mai la rete). In
+// parallelo si tenta, per ogni microcategoria, una ricerca su Wikimedia Commons filtrata sulla
+// licenza — solo risultati genuinamente di pubblico dominio, mai stock generico — e se va a
+// buon fine si sostituisce silenziosamente l'immagine con un piccolo badge di provenienza.
+// Se la rete non è disponibile, l'API non risponde, o non ci sono risultati adatti, non succede
+// nulla: il prototipo resta identico a prima, senza mai bloccarsi o rompersi in assenza di rete.
+const realImagePromises = new Map(); // "settoreIdx|microIdx" -> Promise<{url,credit}|null>
+// Nessuna foto reale si ripete mai tra le microcategorie/macrocategorie di questa sessione: ogni
+// url restituito da una fonte viene registrato qui, e fetchPublicDomainImage scarta silenziosamente
+// un risultato già usato provando la fonte/variante successiva, invece di mostrare due volte la
+// stessa immagine in due tag diversi.
+const usedImageUrls = new Set();
+
+// Chiavi API facoltative per le fonti che le richiedono. Lasciate vuote di default: se una
+// chiave manca, quella singola fonte viene saltata senza errori (nessun'altra funzionalità ne
+// risente). Per attivarle, ottieni una chiave gratuita su:
+//   Smithsonian → https://api.data.gov/signup/
+//   Rijksmuseum → https://data.rijksmuseum.nl/docs/api/
+//   Europeana   → https://pro.europeana.eu/get-api
+//   Flickr      → https://www.flickr.com/services/apps/create/apply/
+const API_KEYS = {
+  smithsonian: '',
+  rijksmuseum: '',
+  europeana: '',
+  flickr: '',
+};
+
+// Ogni fonte espone la stessa forma: async (query) => {url, credit, pageUrl?, excerpt?} | null.
+// pageUrl è la pagina reale della fonte (mai il solo file immagine); excerpt è un breve estratto
+// testuale SOLO se la fonte stessa lo fornisce — mai generato o inventato per riempire un vuoto.
+// Ripulisce un estratto testuale grezzo (HTML incluso) in una frase breve e presentabile. Se non
+// c'è nulla di reale da mostrare, ritorna undefined: la card in fullscreen semplicemente non
+// mostrerà l'estratto, invece di inventarne uno.
+function cleanExcerpt(raw, maxLen){
+  if(!raw) return undefined;
+  const text = String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if(!text) return undefined;
+  const limit = maxLen || 180;
+  return text.length > limit ? text.slice(0, limit - 1).trim() + '…' : text;
+}
+// Wikimedia Commons — nessuna chiave richiesta. Il filtro sulla licenza avviene DOPO la ricerca
+// (sul campo extmetadata.LicenseShortName di ogni singolo file), non nella query stessa: la
+// clausola incategory:"Public domain" era troppo restrittiva — moltissimi file genuinamente di
+// pubblico dominio non sono manualmente categorizzati lì, solo licenziati con un template PD —
+// e da sola tagliava fuori la maggior parte dei risultati validi. gsrlimit più alto per avere più
+// candidati tra cui trovare il primo davvero libero.
+async function fetchFromWikimedia(query){
+  const params = new URLSearchParams({
+    action: 'query', generator: 'search',
+    gsrsearch: query,
+    gsrnamespace: '6', gsrlimit: '15',
+    prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '800',
+    format: 'json', origin: '*',
+  });
+  const res = await fetch('https://commons.wikimedia.org/w/api.php?' + params.toString());
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const pages = data && data.query && data.query.pages;
+  if(!pages) return null;
+  for(const key in pages){
+    const info = pages[key].imageinfo && pages[key].imageinfo[0];
+    if(!info) continue;
+    const meta = info.extmetadata || {};
+    const license = ((meta.LicenseShortName && meta.LicenseShortName.value) || '').toLowerCase();
+    if(!license.includes('public domain') && license !== 'pd') continue; // solo diritti davvero decaduti
+    const url = info.thumburl || info.url;
+    if(!url || !/\.(jpe?g|png)(\?|$)/i.test(url)) continue; // niente svg/tiff, non adatti a un background-image
+    const artistRaw = (meta.Artist && meta.Artist.value) || '';
+    const artist = artistRaw.replace(/<[^>]+>/g, '').trim();
+    const pageUrl = info.descriptionurl || null; // la vera pagina del file su Commons, non il solo jpg
+    const excerpt = cleanExcerpt(meta.ImageDescription && meta.ImageDescription.value);
+    return { url, credit: artist || 'Wikimedia Commons', pageUrl, excerpt };
+  }
+  return null;
+}
+// Metropolitan Museum of Art Open Access — nessuna chiave, tutto l'oggetto è CC0 quando isPublicDomain=true.
+async function fetchFromMet(query){
+  const searchRes = await fetch('https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=' + encodeURIComponent(query));
+  if(!searchRes || !searchRes.ok) return null;
+  const searchData = await searchRes.json();
+  const ids = (searchData.objectIDs || []).slice(0, 10); // più candidati esaminati -> più probabilità di trovarne uno PD
+  for(const id of ids){
+    const objRes = await fetch('https://collectionapi.metmuseum.org/public/collection/v1/objects/' + id);
+    if(!objRes || !objRes.ok) continue;
+    const obj = await objRes.json();
+    if(obj.isPublicDomain && obj.primaryImageSmall){
+      const chi = obj.artistDisplayName ? obj.artistDisplayName + ' — ' : '';
+      const excerpt = cleanExcerpt([obj.objectName, obj.medium, obj.culture].filter(Boolean).join(' · '));
+      return { url: obj.primaryImageSmall, credit: chi + 'Met Museum (CC0)', pageUrl: obj.objectURL || null, excerpt };
+    }
+  }
+  return null;
+}
+// NASA Image and Video Library — nessuna chiave, opere di un'agenzia federale USA: pubblico dominio per legge.
+async function fetchFromNasa(query){
+  const res = await fetch('https://images-api.nasa.gov/search?q=' + encodeURIComponent(query) + '&media_type=image');
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const items = (data.collection && data.collection.items) || [];
+  for(const item of items.slice(0, 10)){
+    const links = item.links || [];
+    const thumb = links.find(l => l.render === 'image') || links[0];
+    if(thumb && thumb.href){
+      const d = (item.data && item.data[0]) || {};
+      const titolo = d.title || 'NASA';
+      const pageUrl = d.nasa_id ? ('https://images.nasa.gov/details/' + d.nasa_id) : null;
+      const excerpt = cleanExcerpt(d.description);
+      return { url: thumb.href, credit: titolo + ' — NASA (pubblico dominio)', pageUrl, excerpt };
+    }
+  }
+  return null;
+}
+// Smithsonian Open Access — richiede una chiave api.data.gov; saltata se API_KEYS.smithsonian è vuoto.
+async function fetchFromSmithsonian(query){
+  if(!API_KEYS.smithsonian) return null;
+  const res = await fetch('https://api.si.edu/openaccess/api/v1.0/search?q=' + encodeURIComponent(query) + '&api_key=' + API_KEYS.smithsonian + '&rows=10');
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const rows = (data.response && data.response.rows) || [];
+  for(const row of rows){
+    const media = row.content && row.content.descriptiveNonRepeating && row.content.descriptiveNonRepeating.online_media;
+    const media0 = media && media.media && media.media[0];
+    const risorsa = media0 && media0.resources && media0.resources.find(r => r.url);
+    if(risorsa){
+      const dnr = row.content && row.content.descriptiveNonRepeating;
+      const pageUrl = (dnr && dnr.record_link) || (row.id ? ('https://www.si.edu/object/' + row.id) : null);
+      const freetext = row.content && row.content.freetext;
+      const rawNote = freetext && freetext.notes && freetext.notes[0] && freetext.notes[0].content;
+      return { url: risorsa.url, credit: (row.title || 'Smithsonian Open Access') + ' (CC0)', pageUrl, excerpt: cleanExcerpt(rawNote) };
+    }
+  }
+  return null;
+}
+// Rijksmuseum — richiede una chiave gratuita; saltata se API_KEYS.rijksmuseum è vuoto.
+async function fetchFromRijksmuseum(query){
+  if(!API_KEYS.rijksmuseum) return null;
+  const res = await fetch('https://www.rijksmuseum.nl/api/en/collection?key=' + API_KEYS.rijksmuseum + '&q=' + encodeURIComponent(query) + '&imgonly=true&ps=10');
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const items = data.artObjects || [];
+  for(const item of items){
+    if(item.webImage && item.webImage.url){
+      const pageUrl = (item.links && item.links.web) || null;
+      return { url: item.webImage.url, credit: (item.principalOrFirstMaker || 'Rijksmuseum') + ' — Public Domain Mark', pageUrl };
+    }
+  }
+  return null;
+}
+// Europeana — richiede una chiave gratuita; saltata se API_KEYS.europeana è vuoto. Filtro reusability=open
+// più un controllo esplicito sul campo rights per accettare solo Public Domain / Out of Copyright.
+async function fetchFromEuropeana(query){
+  if(!API_KEYS.europeana) return null;
+  const res = await fetch('https://api.europeana.eu/record/v2/search.json?wskey=' + API_KEYS.europeana + '&query=' + encodeURIComponent(query) + '&reusability=open&media=true&rows=10');
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const items = data.items || [];
+  for(const item of items){
+    const rights = (item.rights && item.rights[0]) || '';
+    if(!/publicdomain|public-domain|out.?of.?copyright/i.test(rights)) continue;
+    if(item.edmPreview && item.edmPreview[0]){
+      const autore = (item.dcCreator && item.dcCreator[0]) || 'Europeana';
+      const pageUrl = (item.edmIsShownAt && item.edmIsShownAt[0]) || item.guid || null;
+      const excerpt = cleanExcerpt(item.dcDescription && item.dcDescription[0]);
+      return { url: item.edmPreview[0], credit: autore + ' — Public Domain', pageUrl, excerpt };
+    }
+  }
+  return null;
+}
+// Flickr Commons — richiede una chiave gratuita; saltata se API_KEYS.flickr è vuoto. is_commons=1
+// restringe la ricerca al solo programma "Flickr Commons" (~100 istituzioni culturali che
+// pubblicano esplicitamente con l'etichetta "nessuna restrizione di copyright nota") — non la
+// ricerca generale di Flickr, che include materiale protetto da copyright.
+async function fetchFromFlickrCommons(query){
+  if(!API_KEYS.flickr) return null;
+  const params = new URLSearchParams({
+    method: 'flickr.photos.search', api_key: API_KEYS.flickr,
+    is_commons: '1', text: query, sort: 'relevance', per_page: '10',
+    extras: 'owner_name,url_c,url_z,url_m',
+    format: 'json', nojsoncallback: '1',
+  });
+  const res = await fetch('https://api.flickr.com/services/rest/?' + params.toString());
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const foto = (data.photos && data.photos.photo) || [];
+  for(const p of foto){
+    const url = p.url_c || p.url_z || p.url_m;
+    if(!url) continue;
+    const pageUrl = `https://www.flickr.com/photos/${p.owner}/${p.id}`;
+    return { url, credit: (p.ownername || 'Flickr Commons') + ' — nessuna restrizione di copyright nota', pageUrl };
+  }
+  return null;
+}
+// Openverse — nessuna chiave richiesta; per costituzione del servizio aggrega solo materiale già
+// a licenza aperta o di pubblico dominio (non un motore di ricerca generico). L'API restituisce
+// già una stringa di attribuzione pronta all'uso, mai ricostruita a mano da campi sparsi.
+async function fetchFromOpenverse(query){
+  const params = new URLSearchParams({ q: query, page_size: '10' });
+  const res = await fetch('https://api.openverse.org/v1/images/?' + params.toString());
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const risultati = data.results || [];
+  for(const r of risultati){
+    if(!r.url) continue;
+    const credit = r.attribution || ((r.creator || 'Openverse') + ' — ' + (r.license || 'licenza aperta').toUpperCase());
+    return { url: r.url, credit, pageUrl: r.foreign_landing_url || null, excerpt: cleanExcerpt(r.title) };
+  }
+  return null;
+}
+// Internet Archive — nessuna chiave richiesta. mediatype:image AND licenseurl:[* TO *] restringe
+// ai soli oggetti che dichiarano davvero una licenza (pubblico dominio o Creative Commons) nei
+// metadati: la ricerca generale di Internet Archive include troppo materiale eterogeneo/non
+// licenziato per fidarsene senza questo filtro (verificato in fase di implementazione). L'immagine
+// viene sempre dal servizio ufficiale services/img, la pagina è sempre quella reale dell'oggetto.
+async function fetchFromInternetArchive(query){
+  const params = new URLSearchParams({
+    q: `mediatype:image AND (${query}) AND licenseurl:[* TO *]`,
+    rows: '10', output: 'json',
+  });
+  params.append('fl[]', 'identifier');
+  params.append('fl[]', 'title');
+  params.append('fl[]', 'licenseurl');
+  const res = await fetch('https://archive.org/advancedsearch.php?' + params.toString());
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const docs = (data.response && data.response.docs) || [];
+  for(const d of docs){
+    if(!d.identifier || !d.licenseurl) continue;
+    const licenza = /publicdomain/i.test(d.licenseurl) ? 'Public Domain' : 'Creative Commons';
+    return {
+      url: `https://archive.org/services/img/${d.identifier}`,
+      credit: (d.title || 'Internet Archive') + ' — ' + licenza,
+      pageUrl: `https://archive.org/details/${d.identifier}`,
+    };
+  }
+  return null;
+}
+// Library of Congress — nessuna chiave richiesta. La divisione Prints & Photographs digitalizza
+// prevalentemente materiale storico ormai di pubblico dominio; si esclude solo ciò che l'API
+// stessa marca come "access_restricted". NOTA verificata in fase di implementazione: l'endpoint è
+// dietro una protezione anti-bot che ha bloccato le chiamate di prova da riga di comando — se
+// risultasse bloccata anche da un vero browser, questa fonte semplicemente non contribuisce mai
+// (fallisce in silenzio, come una qualunque fonte irraggiungibile), senza alcun impatto sul resto.
+async function fetchFromLibraryOfCongress(query){
+  const params = new URLSearchParams({ q: query, fo: 'json', c: '10' });
+  const res = await fetch('https://www.loc.gov/photos/?' + params.toString());
+  if(!res || !res.ok) return null;
+  const data = await res.json();
+  const risultati = data.results || [];
+  for(const r of risultati){
+    if(r.access_restricted) continue;
+    const immagini = r.image_url;
+    const url = Array.isArray(immagini) ? immagini[immagini.length - 1] : immagini;
+    if(!url) continue;
+    const pageUrl = r.id || r.url || null;
+    const excerpt = cleanExcerpt(r.description && r.description[0]);
+    return { url, credit: (r.title || 'Library of Congress') + ' — Library of Congress', pageUrl, excerpt };
+  }
+  return null;
+}
+
+// Le 6 fonti "cultura" (musei/archivi istituzionali). L'ordine qui sotto non è quello
+// effettivamente usato ad ogni chiamata: vedi shuffleArray poco sotto — un mix dinamico che
+// distribuisce le "vincite" tra le fonti invece di far dominare sempre la prima della lista,
+// senza però perdere efficienza (si continua a fermarsi al primo risultato buono, nessuna
+// chiamata di rete in più del necessario).
+const IMAGE_SOURCES = [fetchFromWikimedia, fetchFromMet, fetchFromNasa, fetchFromSmithsonian, fetchFromRijksmuseum, fetchFromEuropeana];
+
+// --- Livelli di affidabilità delle fonti immagine (direttiva 2026-08-02) ---
+// Nella griglia a 9 di una macrocategoria si mischiano due "livelli" di fonte — non di
+// estetica/aspetto, ma di AFFIDABILITÀ, che resta identica per entrambi:
+//   - "cultura" (IMAGE_SOURCES sopra): musei/archivi istituzionali, ~70% delle 9 foto (6-7).
+//   - "pop" (POP_IMAGE_SOURCES qui sotto): stesso standard di affidabilità — foto reali,
+//     verificabili, di pubblico dominio o licenza aperta, MAI generate da IA — ma con un taglio
+//     più eccentrico/pop/fuori dagli schemi. ~30% (2-3 foto).
+// In entrambi i casi resta valida ogni direttiva permanente già in vigore: mai una foto non
+// coerente con la specifica microcategoria/macrocategoria, mai un'immagine generata dall'IA, mai
+// fabbricare una fonte/link/estratto quando la ricerca reale non ne restituisce uno. Se una tile
+// "pop" non produce nulla di genuinamente libero, fetchPublicDomainImage ricade comunque sulle
+// fonti cultura (vedi sotto): nessuno slot resta mai vuoto solo perché il livello pop non trova
+// nulla.
+const POP_IMAGE_SOURCES = [fetchFromFlickrCommons, fetchFromOpenverse, fetchFromInternetArchive, fetchFromLibraryOfCongress];
+const CULTURA_SHARE = 0.7; // ~6-7 foto su 9; il resto (~2-3) va a POP_IMAGE_SOURCES
+function shuffleArray(list){
+  const arr = [...list];
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// PRNG seedato (mulberry32) usato solo per decidere QUALI posizioni della griglia a 9 sono "pop"
+// in una data pagina — mai per generare o alterare un contenuto. Seedato su settore+pagina (mai
+// sulla singola microcategoria, per non favorire sempre le stesse posizioni): la stessa
+// combinazione dà sempre lo stesso risultato (stabile scorrendo avanti e indietro tra le pagine
+// già viste), pagine diverse (refresh diversi) pescano posizioni diverse.
+function hashSeedString(str){
+  let h = 0;
+  for(let i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) | 0; }
+  return h >>> 0;
+}
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Sceglie quali microIdx (0..count-1) di una data pagina sono "pop": Math.round(count *
+// (1-CULTURA_SHARE)) posizioni. Se POP_IMAGE_SOURCES è vuoto il risultato è sempre l'insieme
+// vuoto — comportamento identico a prima di popolarlo, nessuna regressione silenziosa.
+function popSlotsForPage(sIdx, page, count){
+  if(!POP_IMAGE_SOURCES.length) return new Set();
+  const nPop = Math.round(count * (1 - CULTURA_SHARE));
+  if(nPop <= 0) return new Set();
+  const rng = mulberry32(hashSeedString(sIdx + '|' + page));
+  const idxs = Array.from({ length: count }, (_, i) => i);
+  for(let i = idxs.length - 1; i > 0; i--){
+    const j = Math.floor(rng() * (i + 1));
+    [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
+  }
+  return new Set(idxs.slice(0, nPop));
+}
+function isPopSlot(sIdx, microIdx, page){
+  return popSlotsForPage(sIdx, page, microCategorie[sIdx].length).has(microIdx);
+}
+
+// fetchPublicDomainImage accetta una singola query (retrocompatibile) o un elenco di varianti:
+// si tenta ogni variante, su tutte le fonti (in ordine mescolato), finché una non produce un
+// risultato — questo, insieme all'aver allentato il filtro di Wikimedia sopra, è il modo in cui
+// affrontiamo il problema delle "poche immagini reali": più tentativi, più fonti, più probabilità
+// di trovarne una davvero libera, senza mai sacrificare l'arresto al primo successo. preferPop
+// (di default false/omesso) prova prima le fonti pop mescolate, poi ricade comunque su quelle
+// cultura mescolate: una tile "pop" senza risultato non resta mai vuota.
+async function fetchPublicDomainImage(queryOrQueries, preferPop){
+  if(typeof fetch === 'undefined') return null; // ambienti senza fetch: niente tentativo di rete
+  const varianti = (Array.isArray(queryOrQueries) ? queryOrQueries : [queryOrQueries]).filter(Boolean);
+  const sources = preferPop ? [...shuffleArray(POP_IMAGE_SOURCES), ...shuffleArray(IMAGE_SOURCES)] : shuffleArray(IMAGE_SOURCES);
+  for(const query of varianti){
+    for(const source of sources){
+      try {
+        const result = await source(query);
+        // Un url già usato in un'altra microcategoria/macrocategoria di questa sessione viene
+        // scartato: si prova la fonte/variante successiva invece di ripetere la stessa foto.
+        if(result && !usedImageUrls.has(result.url)){
+          usedImageUrls.add(result.url);
+          return result;
+        }
+      } catch(err) {
+        // una singola fonte irraggiungibile non deve bloccare le altre: si prova la successiva
+      }
+    }
+  }
+  return null;
+}
+function resolveRealImage(sIdx, mIdx, query){
+  const key = sIdx + '|' + mIdx;
+  if(!realImagePromises.has(key)){
+    // Genesi = sempre pagina 0.
+    realImagePromises.set(key, fetchPublicDomainImage(query, isPopSlot(sIdx, mIdx, 0)).catch(() => null));
+  }
+  return realImagePromises.get(key);
+}
+// Come resolveRealImage, ma ignora sempre la cache: usata da renderGridPages per le versioni nate
+// da un refresh dell'intera griglia (vedi refreshWholeGrid), per ottenere volutamente un
+// contenuto diverso da quello già mostrato, riusando la stessa deduplicazione globale (vedi
+// usedImageUrls) così il nuovo risultato non è mai una foto già vista altrove nella sessione.
+// page è l'indice della pagina/versione richiesta (coincide con quello usato da isPopSlot).
+function fetchFreshRealImage(sIdx, mIdx, page){
+  return fetchPublicDomainImage(microQueryVariants(sIdx, mIdx), isPopSlot(sIdx, mIdx, page)).catch(() => null);
+}
+function applyRealImageToTile(el, result){
+  if(!document.body.contains(el)) return; // la griglia potrebbe essere stata ridisegnata nel frattempo
+  el.style.backgroundImage = `url(${result.url})`;
+  if(!el.querySelector('.real-photo-badge')){
+    const badge = document.createElement('div');
+    badge.className = 'real-photo-badge';
+    badge.title = 'Foto reale, pubblico dominio — ' + result.credit;
+    badge.textContent = '✓';
+    el.appendChild(badge);
+  }
+}
+
+function hostnameOf(url){
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch(err){ return null; }
+}
+// Applica un risultato reale già risolto (url/credit/pageUrl/excerpt) alla vista fullscreen —
+// fattorizzato fuori da openFullscreen così lo stesso codice serve sia alla prima risoluzione sia
+// alla riapertura istantanea di una versione già nota (nessuna nuova richiesta di rete).
+function applyRealImageToFullscreen(result){
+  document.getElementById('fs-img').style.backgroundImage = `url(${result.url})`;
+  const credit = document.getElementById('fs-credit');
+  credit.textContent = 'Foto reale, pubblico dominio — ' + result.credit;
+  credit.style.display = 'block';
+  // Fonte reale: link alla pagina vera (mai al solo file immagine) ed estratto, ma solo se
+  // la fonte li fornisce davvero. Nessun testo di riempimento inventato al loro posto.
+  const link = document.getElementById('fs-source-link');
+  if(result.pageUrl){
+    const host = hostnameOf(result.pageUrl);
+    link.href = result.pageUrl;
+    link.textContent = host ? `Vedi su ${host} →` : 'Vai alla fonte →';
+    link.style.display = 'block';
+  }
+  const excerptEl = document.getElementById('fs-source-excerpt');
+  if(result.excerpt){
+    excerptEl.textContent = result.excerpt;
+    excerptEl.style.display = 'block';
+  }
+  // L'indicatore glass "Approfondimento sotto" compare solo quando c'è davvero qualcosa sotto
+  // l'immagine (link e/o estratto) — mai come promessa vuota.
+  const depthHint = document.getElementById('fs-depth-hint');
+  if(depthHint) depthHint.style.display = (result.pageUrl || result.excerpt) ? 'flex' : 'none';
+}
+// forcedVersionIdx: usata da renderGridPages per aprire la versione esatta mostrata in quella
+// pagina (invece dell'ultima) quando si tocca una foto — il seed reale viene comunque sempre
+// riletto dalla versione stessa, mai da quello passato dal chiamante.
+function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
+  const settoreIdx = settori.indexOf(settore);
+  const micro = (microIdx !== undefined && microIdx !== null) ? microCategorie[settoreIdx][microIdx] : null;
+  const key = (microIdx !== undefined && microIdx !== null) ? (settoreIdx + '|' + microIdx) : null;
+  let entry = null, vIdx = 0;
+  if(key !== null){
+    ensureVersionGenesis(key, seed);
+    const versions = microVersions.get(key);
+    vIdx = (forcedVersionIdx !== undefined && forcedVersionIdx !== null) ? Math.min(forcedVersionIdx, versions.length - 1) : versions.length - 1;
+    entry = versions[vIdx];
+    seed = entry.seed; // la versione effettivamente mostrata decide il seed, non il chiamante
+  }
+  document.getElementById('fs-img').style.backgroundImage = `url(https://picsum.photos/seed/${seed}/800/1000)`;
+  // Il titolo mostra sempre anche la microcategoria specifica, non solo la macrocategoria: prima
+  // diceva sempre e solo "Spunto da <macro>" identico per tutte le microcategorie di un tag,
+  // quindi lo swipe laterale cambiava davvero microcategoria ma non lo si poteva percepire da
+  // nessun testo a schermo — sembrava non succedere nulla anche quando succedeva.
+  const nomeMacro = settore.nome.charAt(0).toUpperCase() + settore.nome.slice(1);
+  const nomeMicro = micro ? (micro.nome.charAt(0).toUpperCase() + micro.nome.slice(1)) : null;
+  document.getElementById('fs-title').textContent = nomeMicro ? (nomeMacro + ' — ' + nomeMicro) : ('Spunto da ' + settore.nome);
+  document.getElementById('fs-desc').textContent = nomeMicro ? ('Contenuto taggato ' + nomeMicro.toLowerCase() + ', dentro ' + settore.nome + '.') : ('Contenuto di esempio taggato ' + settore.nome + '.');
+  document.getElementById('fs-credit').style.display = 'none';
+  document.getElementById('fs-credit').textContent = '';
+  document.getElementById('fs-source-link').style.display = 'none';
+  document.getElementById('fs-source-link').textContent = '';
+  document.getElementById('fs-source-excerpt').style.display = 'none';
+  document.getElementById('fs-source-excerpt').textContent = '';
+  const depthHint0 = document.getElementById('fs-depth-hint');
+  if(depthHint0) depthHint0.style.display = 'none';
+  if(window._resetFullscreenZoom) window._resetFullscreenZoom(); // ogni apertura riparte da 1x
+  window._currentSeed = seed;
+  // vIdx salvato qui: è ciò che permette a navigateMicro di restare sulla stessa pagina/versione
+  // quando si salta a un'altra microcategoria, invece di finire sempre sull'ultima (vedi bug
+  // corretto sopra in navigateMicro).
+  lastDiscovery = { seed, idx: settoreIdx, microIdx: (microIdx !== undefined ? microIdx : null), vIdx: (key !== null ? vIdx : undefined) };
+  sessionSpuntiAperti++;
+  // Ogni "porzione" aperta registra la sua microcategoria: è questo l'evento che alimenta i
+  // chip espansi e il pannello organizzato per macrocategoria (vedi renderVisitedRow /
+  // renderOrganizePanel) — distinto dal semplice "aver navigato nella griglia" del tag macro.
+  if(key !== null){
+    sessionMicroVisitati.add(key);
+    renderVisitedRow();
+    renderOrganizePanel();
+    if(entry.result){
+      // Versione già risolta in precedenza (cache o riapertura dalla cronologia): nessuna nuova
+      // richiesta di rete, si mostra subito.
+      applyRealImageToFullscreen(entry.result);
+    } else {
+      // Se l'utente nel frattempo apre un'altra versione/microcategoria, il risultato in arrivo
+      // in ritardo aggiorna comunque la cronologia (vedi sotto), solo la VISTA a schermo intero
+      // resta quella corrente (window._fsCurrentToken) — stesso bug della griglia corretto qui:
+      // scartare l'intero risultato invece di salvarlo su entry.result faceva ripartire da zero
+      // (fetchFreshRealImage non ha cache) ogni volta che si tornava su quella versione dopo
+      // essere passati altrove troppo in fretta.
+      const token = key + '#' + vIdx;
+      window._fsCurrentToken = token;
+      const fetchPromise = vIdx === 0
+        ? resolveRealImage(settoreIdx, microIdx, microQueryVariants(settoreIdx, microIdx))
+        : fetchFreshRealImage(settoreIdx, microIdx, vIdx);
+      fetchPromise.then(result => {
+        if(!result) return;
+        entry.result = result;
+        if(window._fsCurrentToken === token) applyRealImageToFullscreen(result);
+        saveSession();
+      });
+    }
+  }
+  refreshWidgetTiles();
+  document.getElementById('fullscreen').classList.add('active');
+  saveSession();
+}
+// Refresh dell'INTERA griglia a 9 (sostituisce il vecchio refresh per singola foto, rimosso su
+// richiesta esplicita: non serviva più refreshare una foto alla volta). Rigenera tutte e 9 le
+// microcategorie del tag aperto in un colpo solo, creando una nuova PAGINA (vedi renderGridPages)
+// — non cambia mai macrocategoria (per quello c'è solo ricerca/chip, mai il refresh). Come prima,
+// nessuna pagina precedente sparisce mai: restano tutte raggiungibili scorrendo la griglia o
+// pigiando i pallini sotto di essa. Consuma una sola unità della risorsa "refresh disponibili"
+// (credits/maxCredits) per l'intera operazione — non una per foto — bloccando e segnalando
+// (shakeCreditsRow) quando esaurita.
+function refreshWholeGrid(){
+  if(credits <= 0){ shakeCreditsRow(); return; }
+  credits = Math.max(0, credits - 1); renderCredits();
+  const sIdx = currentTagIdx;
+  microCategorie[sIdx].forEach((m, microIdx) => {
+    const key = sIdx + '|' + microIdx;
+    const genesisSeed = settori[sIdx].nome + microIdx;
+    ensureVersionGenesis(key, genesisSeed);
+    const versions = microVersions.get(key);
+    const newSeed = settori[sIdx].nome + microIdx + '-r' + versions.length;
+    versions.push({ seed: newSeed, result: null });
+  });
+  renderGridPages(sIdx); // ridisegna tutte le pagine e salta subito a quella appena creata
+  saveSession();
+}
+function closeFullscreen(){
+  document.getElementById('fullscreen').classList.remove('active');
+  if(window._resetFullscreenZoom) window._resetFullscreenZoom();
+}
+// Zoom dell'immagine in fullscreen: doppio tap per alternare 1x/2.4x, pinch a due dita per uno
+// zoom continuo, trascinamento per spostarsi quando si è ingranditi. Stesso principio delle
+// altre gesture del prototipo: Pointer Events, nessuna libreria esterna.
+(function initFullscreenZoom(){
+  const img = document.getElementById('fs-img');
+  if(!img) return;
+  let scale = 1, tx = 0, ty = 0;
+  let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+  const pointers = new Map();
+  let pinchStartDist = 0, pinchStartScale = 1;
+  let panStart = null;
+  function applyTransform(){ img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; }
+  function resetZoom(){ scale = 1; tx = 0; ty = 0; applyTransform(); }
+  window._resetFullscreenZoom = resetZoom;
+  window._fsIsZoomed = () => scale > 1; // usato dallo swipe laterale a schermo intero, più sotto:
+  // se l'immagine è ingrandita un trascinamento orizzontale deve fare pan, non cambiare scheda.
+  img.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if(img.setPointerCapture){ try { img.setPointerCapture(e.pointerId); } catch(err){} }
+    if(pointers.size === 1){
+      panStart = { x: e.clientX, y: e.clientY, tx, ty };
+      const now = Date.now();
+      const moved = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY);
+      if(now - lastTapTime < 320 && moved < 25){
+        if(scale > 1){ resetZoom(); } else { scale = 2.4; applyTransform(); }
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
+      }
+    } else if(pointers.size === 2){
+      const pts = Array.from(pointers.values());
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      pinchStartScale = scale;
+    }
+  });
+  img.addEventListener('pointermove', (e) => {
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if(pointers.size === 2){
+      const pts = Array.from(pointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      scale = Math.min(4, Math.max(1, pinchStartScale * (dist / pinchStartDist)));
+      applyTransform();
+    } else if(pointers.size === 1 && scale > 1 && panStart){
+      tx = panStart.tx + (e.clientX - panStart.x);
+      ty = panStart.ty + (e.clientY - panStart.y);
+      applyTransform();
+    }
+  });
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if(pointers.size < 2) pinchStartDist = 0;
+    if(pointers.size === 0) panStart = null;
+    if(scale <= 1.02){ scale = 1; tx = 0; ty = 0; applyTransform(); }
+  }
+  img.addEventListener('pointerup', endPointer);
+  img.addEventListener('pointercancel', endPointer);
+})();
+
+// Ricerca: autocomplete su lista chiusa (mai testo libero) + vista alfabetica completa quando
+// il campo è vuoto. Indicizza tutti e tre i livelli ormai modellati nei dati: i 7 mega-settori,
+// le loro microcategorie (livello 2 del brief, ora con almeno 10 per settore) e i titoli delle
+// raccolte create in home — la "banda di ricerca" richiesta, con tutte le macro e microcategorie.
+function buildSearchIndex(){
+  const items = [];
+  settori.forEach((s, idx) => {
+    const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+    items.push({ tipo:'tag', label: nome, idx, colore:s.colore });
+    microCategorie[idx].forEach((m, microIdx) => items.push({ tipo:'microcategoria', label: m.nome, idx, microIdx, colore: microColore(idx, microIdx) }));
+  });
+  pages.forEach(pageIcons => pageIcons.forEach(ic => items.push({ tipo:'raccolta', label: ic.titolo, idx: ic.settori[0], colore: settori[ic.settori[0]].colore })));
+  return items;
+}
+function onSearchInput(q){
+  const all = buildSearchIndex();
+  const query = q.trim().toLowerCase();
+  const filtered = query ? all.filter(it => it.label.toLowerCase().includes(query)) : all;
+  renderSearchResults(filtered);
+}
+// I risultati non sono più un'unica lista alfabetica mista tra macrocategorie diverse: si
+// raggruppa prima per macrocategoria (nell'ordine fisso di `settori`, con un'intestazione
+// tappabile che apre direttamente il tag) e dentro ogni gruppo le sue microcategorie sono in
+// ordine di affinità cromatica — la stessa `sfumatura`/`sortedMicroIndices` già usata per lo
+// swipe laterale — invece che alfabetico, così le microcategorie più simili tra loro (es. in
+// Cultura: ceramica e artigianato, entrambe artigianali) restano vicine anche qui. Le raccolte
+// personali restano una sezione a parte, in coda.
+function renderSearchResults(list){
+  const box = document.getElementById('search-results');
+  box.innerHTML = '';
+  if(list.length === 0){
+    box.innerHTML = '<p class="hint">Nessun tag o raccolta corrisponde. Prova con un altro termine.</p>';
+    return;
+  }
+  let trovatoQualcosa = false;
+  settori.forEach((s, idx) => {
+    const tagItem = list.find(it => it.tipo === 'tag' && it.idx === idx);
+    const microItems = list.filter(it => it.tipo === 'microcategoria' && it.idx === idx);
+    if(!tagItem && microItems.length === 0) return;
+    trovatoQualcosa = true;
+    const heading = document.createElement('div');
+    heading.className = 'search-macro-heading';
+    heading.innerHTML = `<span class="tc-dot" style="width:9px;height:9px;border-radius:50%;background:${s.colore};display:inline-block;"></span><span>${s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</span>`;
+    heading.onclick = () => { closeSearchSheet(); openTag(idx); };
+    box.appendChild(heading);
+    sortedMicroIndices(idx).forEach(microIdx => {
+      const it = microItems.find(m => m.microIdx === microIdx);
+      if(it) renderSearchRow(box, it, true);
+    });
+  });
+  const raccolte = list.filter(it => it.tipo === 'raccolta');
+  if(raccolte.length){
+    trovatoQualcosa = true;
+    const heading = document.createElement('p');
+    heading.className = 'row-label search-section-label';
+    heading.textContent = 'Le tue raccolte';
+    box.appendChild(heading);
+    raccolte.forEach(it => renderSearchRow(box, it));
+  }
+  if(!trovatoQualcosa){
+    box.innerHTML = '<p class="hint">Nessun tag o raccolta corrisponde. Prova con un altro termine.</p>';
+  }
+}
+function renderSearchRow(box, it, indent){
+  const row = document.createElement('div');
+  row.className = 'search-row' + (indent ? ' search-row-indent' : '');
+  row.innerHTML = `<span class="tc-dot" style="width:8px;height:8px;border-radius:50%;background:${it.colore};display:inline-block;"></span><span class="sr-label">${it.label}</span>`;
+  row.onclick = () => { closeSearchSheet(); openTag(it.idx); };
+  box.appendChild(row);
+}
+function openSearchSheet(){
+  document.getElementById('search-input').value = '';
+  onSearchInput('');
+  document.getElementById('search-sheet').classList.add('active');
+}
+function closeSearchSheet(){ document.getElementById('search-sheet').classList.remove('active'); }
+
+// Nota sul cambio di significato dello swipe: sulla griglia a 9 (sopra) scorrere lateralmente
+// ora passa da una pagina di refresh all'altra (gestito nativamente da .grid-pages con
+// scroll-snap, vedi il listener 'scroll' più sopra vicino a renderGridPages — non serve un
+// gestore wheel/touch dedicato, è scroll di sistema). Il vecchio comportamento — swipe che salta
+// direttamente a schermo intero sulla microcategoria successiva — resta invece SOLO dentro lo
+// schermo intero (qui sotto), su richiesta esplicita: le due cose non condividono più lo stesso
+// gesto nello stesso punto. Stessa logica di prima (wheel + touch, una microcategoria per gesto,
+// mai cambia macrocategoria); quando l'immagine è ingrandita (vedi window._fsIsZoomed, esposta da
+// initFullscreenZoom) il trascinamento orizzontale resta dedicato al pan, non allo swipe.
+const fullscreenEl = document.getElementById('fullscreen');
+let fsWheelAccum = 0, fsWheelCooldown = false;
+fullscreenEl.addEventListener('wheel', (e) => {
+  if(window._fsIsZoomed && window._fsIsZoomed()) return;
+  if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  if(fsWheelCooldown) return;
+  fsWheelAccum += e.deltaX;
+  const threshold = 60;
+  if(Math.abs(fsWheelAccum) >= threshold){
+    navigateMicro(fsWheelAccum > 0 ? 1 : -1);
+    fsWheelAccum = 0;
+    fsWheelCooldown = true;
+    setTimeout(() => { fsWheelCooldown = false; }, 380);
+  }
+}, { passive:false });
+let fsTouchStartX = null;
+fullscreenEl.addEventListener('touchstart', (e) => {
+  if(window._fsIsZoomed && window._fsIsZoomed()){ fsTouchStartX = null; return; }
+  fsTouchStartX = e.touches[0].clientX;
+});
+fullscreenEl.addEventListener('touchend', (e) => {
+  if(fsTouchStartX === null) return;
+  const dx = e.changedTouches[0].clientX - fsTouchStartX;
+  fsTouchStartX = null;
+  if(Math.abs(dx) > 40){ navigateMicro(dx < 0 ? 1 : -1); }
+});
+
+// Ogni "mood" del quadrante cambia insieme forma, stile dell'anello, stile delle lancette
+// e colore — non è più un semplice cambio di tinta.
+const moods = [
+  { nome:'Essenziale', shape:'circle',   ringStyle:'solid',  ringWidth:'2px', ring:'#5C6B4A', faceBg:'#FFFFFF', hand:'#211F1A', handStyle:'thin' },
+  { nome:'Deciso',     shape:'squircle', ringStyle:'solid',  ringWidth:'4px', ring:'#C6533E', faceBg:'#FFFFFF', hand:'#3D1C0C', handStyle:'bold' },
+  { nome:'Organico',   shape:'blob',     ringStyle:'dotted', ringWidth:'3px', ring:'#6B8F4E', faceBg:'#F3F1E7', hand:'#2B3A20', handStyle:'tapered' },
+  { nome:'Notturno',   shape:'square',   ringStyle:'dashed', ringWidth:'2px', ring:'#8A5FA6', faceBg:'#211F33', hand:'#E7E2F5', handStyle:'dotted-tip' },
+];
+let moodIdx = 0;
+function renderMoodCards(){
+  const row = document.getElementById('mood-row');
+  row.innerHTML = '';
+  moods.forEach((m, idx) => {
+    const card = document.createElement('div');
+    card.className = 'mood-card' + (idx === moodIdx ? ' active' : '');
+    card.onclick = () => setMood(idx);
+    card.innerHTML = `
+      <div class="mood-preview shape-${m.shape}" style="border-style:${m.ringStyle}; border-width:2px; border-color:${m.ring}; background:${m.faceBg};">
+        <div class="mp-hand" style="width:2px;height:9px;margin-left:-1px;background:${m.hand};transform:rotate(-40deg);"></div>
+        <div class="mp-hand" style="width:2px;height:12px;margin-left:-1px;background:${m.hand};transform:rotate(75deg);"></div>
+      </div>
+      <span>${m.nome}</span>`;
+    row.appendChild(card);
+  });
+}
+function setMood(i){
+  moodIdx = i;
+  document.querySelectorAll('.mood-card').forEach((c, idx) => c.classList.toggle('active', idx === i));
+  applyMood();
+  saveLayout();
+}
+function applyMood(){
+  const m = moods[moodIdx];
+  const cf = document.getElementById('clockface');
+  cf.classList.remove('shape-circle','shape-squircle','shape-blob','shape-square');
+  cf.classList.add('shape-' + m.shape);
+  cf.style.borderStyle = m.ringStyle;
+  cf.style.borderWidth = m.ringWidth;
+  cf.style.setProperty('--face-ring', m.ring);
+  cf.style.setProperty('--face-bg', m.faceBg);
+  // Come widget dentro la griglia, il quadrante è sempre mostrato in una versione compatta,
+  // qualunque sia la "misura" scelta per il mood — deve stare in una cella tra le icone.
+  const inWidget = document.getElementById('clock-center').classList.contains('widget-tile-mode');
+  const size = inWidget ? 36 : (m.size || 64);
+  cf.style.width = size + 'px';
+  cf.style.height = size + 'px';
+  const hourEl = document.getElementById('hand-hour');
+  const minEl = document.getElementById('hand-min');
+  [hourEl, minEl].forEach(el => {
+    el.classList.remove('style-bold','style-tapered');
+    el.style.background = m.hand;
+    if(m.handStyle === 'bold') el.classList.add('style-bold');
+    if(m.handStyle === 'tapered') el.classList.add('style-tapered');
+  });
+  const dot = document.getElementById('hand-dot');
+  if(m.handStyle === 'dotted-tip'){ dot.classList.add('show'); dot.style.background = m.hand; }
+  else { dot.classList.remove('show'); }
+}
+renderMoodCards();
+applyMood();
+
+// Pacchetti scaricabili: lo stesso meccanismo — catalogo mock, "Scarica", aggiunta alle
+// proprie scelte — vale per orologio, sfondo ed emoji/sticker. Nessuna vera chiamata di
+// rete: in produzione ogni catalogo verrebbe da uno store online reale.
+const pacchettiCatalogo = [
+  { id:'aurora', nome:'Aurora', autore:'Studio Meridiana', shape:'circle', size:74, ringStyle:'solid', ringWidth:'3px', ring:'#D4AF6A', faceBg:'#FFFDF6', hand:'#5C4B1E', handStyle:'thin' },
+  { id:'mono', nome:'Mono', autore:'Bianco su Bianco', shape:'squircle', size:56, ringStyle:'solid', ringWidth:'2px', ring:'#211F1A', faceBg:'#FFFFFF', hand:'#211F1A', handStyle:'thin' },
+  { id:'retro', nome:'Retro Analogico', autore:'Vecchia Manifattura', shape:'blob', size:80, ringStyle:'dotted', ringWidth:'4px', ring:'#B5652E', faceBg:'#F1E4D0', hand:'#4A2E12', handStyle:'tapered' },
+  { id:'neon', nome:'Neon Notturno', autore:'Circuito Aperto', shape:'square', size:66, ringStyle:'dashed', ringWidth:'3px', ring:'#3ED6C4', faceBg:'#151426', hand:'#FF5FB0', handStyle:'dotted-tip' },
+];
+const pacchettiSfondo = [
+  { id:'notte', nome:"Notte d'estate", autore:'Collezione Atmosfere', preview:'linear-gradient(135deg,#1B2A4A,#3E7CA6)' },
+  { id:'terracotta', nome:'Terra Cotta', autore:'Collezione Atmosfere', preview:'linear-gradient(135deg,#C6533E,#D98B3A)' },
+  { id:'foresta', nome:'Foresta', autore:'Collezione Atmosfere', preview:'linear-gradient(135deg,#2B3A20,#6B8F4E)' },
+];
+const pacchettiEmoji = [
+  { id:'natura2', nome:'Set Natura', autore:'Sticker Pack', emojis:['🌵','🍄','🦋','🐝','🌾','🦔'] },
+  { id:'retroset', nome:'Set Retro', autore:'Sticker Pack', emojis:['📼','📻','🕹️','💾','📟','☎️'] },
+  { id:'viaggio2', nome:'Set Viaggio', autore:'Sticker Pack', emojis:['🧳','🗺️','✈️','🚂','🛶','🏕️'] },
+];
+let downloadedEmojiSets = [];
+let currentPackKind = 'orologio'; // 'orologio' | 'sfondo' | 'emoji'
+function catalogFor(kind){ return kind === 'orologio' ? pacchettiCatalogo : kind === 'sfondo' ? pacchettiSfondo : pacchettiEmoji; }
+function renderPacksList(){
+  const list = document.getElementById('packs-list');
+  list.innerHTML = '';
+  catalogFor(currentPackKind).forEach(p => {
+    let already;
+    if(currentPackKind === 'orologio') already = moods.some(m => m.id === p.id);
+    else if(currentPackKind === 'sfondo') already = downloadedWallpapers.some(w => w.id === p.id);
+    else already = downloadedEmojiSets.includes(p.id);
+
+    let previewHTML, metaLine;
+    if(currentPackKind === 'orologio'){
+      previewHTML = `<div class="mood-preview shape-${p.shape}" style="width:30px;height:30px;border-style:${p.ringStyle};border-width:2px;border-color:${p.ring};background:${p.faceBg};">
+        <div class="mp-hand" style="width:2px;height:8px;margin-left:-1px;background:${p.hand};transform:rotate(-40deg);"></div>
+        <div class="mp-hand" style="width:2px;height:11px;margin-left:-1px;background:${p.hand};transform:rotate(75deg);"></div></div>`;
+      metaLine = `${p.autore} · quadrante ${p.size}px`;
+    } else if(currentPackKind === 'sfondo'){
+      previewHTML = `<div class="pack-swatch-preview" style="background:${p.preview};"></div>`;
+      metaLine = p.autore;
+    } else {
+      previewHTML = `<div class="pack-emoji-preview">${p.emojis.slice(0,3).join('')}</div>`;
+      metaLine = `${p.autore} · ${p.emojis.length} sticker`;
+    }
+    const row = document.createElement('div');
+    row.className = 'pack-row';
+    row.innerHTML = `${previewHTML}<div class="pack-info"><strong>${p.nome}</strong><span>${metaLine}</span></div><button class="pack-btn" ${already ? 'disabled' : ''}>${already ? 'Scaricato' : 'Scarica'}</button>`;
+    row.querySelector('.pack-btn').onclick = (e) => downloadPack(p, e.currentTarget);
+    list.appendChild(row);
+  });
+}
+function downloadPack(p, btn){
+  btn.textContent = 'Scaricamento…';
+  btn.disabled = true;
+  setTimeout(() => {
+    if(currentPackKind === 'orologio'){
+      if(moods.some(m => m.id === p.id)) return;
+      moods.push({ id:p.id, nome:p.nome, shape:p.shape, ringStyle:p.ringStyle, ringWidth:p.ringWidth, ring:p.ring, faceBg:p.faceBg, hand:p.hand, handStyle:p.handStyle, size:p.size });
+      renderMoodCards();
+      setMood(moods.length - 1);
+    } else if(currentPackKind === 'sfondo'){
+      if(downloadedWallpapers.some(w => w.id === p.id)) return;
+      downloadedWallpapers.push(p);
+      activeWallpaperId = p.id;
+      document.getElementById('screen').style.backgroundImage = 'none';
+      document.getElementById('screen').style.background = p.preview;
+      renderWallpaperRow();
+    } else {
+      if(downloadedEmojiSets.includes(p.id)) return;
+      downloadedEmojiSets.push(p.id);
+      emojiScelte.push(...p.emojis);
+      if(editorCtx) renderEmojiGrid(); // se l'editor icona è aperto, la griglia si aggiorna subito
+    }
+    renderPacksList();
+    closePacksSheet();
+    saveLayout();
+  }, 500);
+}
+function openPacksSheet(kind){
+  currentPackKind = kind;
+  document.getElementById('packs-sheet-title').textContent =
+    kind === 'orologio' ? 'Pacchetti orologio' : kind === 'sfondo' ? 'Pacchetti sfondo' : 'Pacchetti sticker';
+  document.getElementById('packs-sheet-sub').textContent =
+    kind === 'orologio' ? 'Quadranti aggiuntivi di forma e misura diversa, da aggiungere ai tuoi mood.'
+    : kind === 'sfondo' ? 'Sfondi a tema da aggiungere alle tue scelte.'
+    : 'Sticker ed emoji aggiuntivi da usare nelle tue icone.';
+  renderPacksList();
+  document.getElementById('packs-sheet').classList.add('active');
+}
+function closePacksSheet(){ document.getElementById('packs-sheet').classList.remove('active'); }
+
+// "Nota su di te": osservazioni fattuali e deliberatamente non estetizzanti sulle immagini
+// condivise dall'utente nelle proprie raccolte. Vive solo nelle impostazioni (mai in home,
+// mai un badge colorato come le altre voci), non è un pannello sempre aggiornato — si rigenera
+// solo su richiesta — e ogni riga chiude con un rimando in avanti verso un tag da esplorare:
+// il riflesso su di sé serve a rilanciare lo sguardo fuori, non a specchiarsi. Layout "tipo
+// file excel": la miniatura (piccola, quadrata) serve solo a riconoscere la fonte a colpo
+// d'occhio, il testo — microcategoria + descrizione clinica — ha la priorità.
+const noteSuDiTePool = [
+  { seed:'nota-trek1', microCategoria:"Trekking d'autunno", descrizione:'Tono dominante verde-bruno, inquadrature quasi tutte orizzontali, poche persone in primo piano.', tagIdx:3 },
+  { seed:'nota-osteria1', microCategoria:'Osteria di quartiere', descrizione:'Composizioni riprese dall\'alto, superfici in legno o pietra, luce calda e bassa.', tagIdx:0 },
+  { seed:'nota-concerti1', microCategoria:'Concerti indie', descrizione:'Ambienti scarsamente illuminati, figure spesso in controluce, poche foto nitide.', tagIdx:1 },
+  { seed:'nota-scienza1', microCategoria:'Curiosità scientifiche', descrizione:'Inquadrature ravvicinate su singoli oggetti, sfondo neutro, quasi mai persone.', tagIdx:5 },
+  { seed:'nota-ceramica1', microCategoria:'Studio ceramica', descrizione:'Palette tono su tono, molte superfici curve, luce diffusa senza ombre nette.', tagIdx:4 },
+  { seed:'nota-skate1', microCategoria:'Skate sessions', descrizione:'Inquadrature dal basso, soggetti in movimento, sfondo urbano ricorrente.', tagIdx:1 },
+  { seed:'nota-mercatini1', microCategoria:'Mercatini vintage', descrizione:'Oggetti fotografati singolarmente su sfondi disordinati, poca simmetria.', tagIdx:4 },
+  { seed:'nota-meme1', microCategoria:'Meme del venerdì', descrizione:'Screenshot e testo sovrapposto ricorrono più delle fotografie originali.', tagIdx:2 },
+];
+function renderNotaList(){
+  const box = document.getElementById('nota-list');
+  box.innerHTML = '';
+  const shuffled = [...noteSuDiTePool].sort(() => Math.random() - 0.5).slice(0, 4);
+  shuffled.forEach(n => {
+    const s = settori[n.tagIdx];
+    const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+    const row = document.createElement('div');
+    row.className = 'nota-row';
+    row.innerHTML = `<div class="nota-thumb" style="background-image:url(https://picsum.photos/seed/${n.seed}/120/120);"></div><div class="nota-text"><p class="nota-cat">${n.microCategoria}</p><p class="nota-desc">${n.descrizione}</p><button class="nota-explore">Esplora ${nome} →</button></div>`;
+    row.querySelector('.nota-explore').onclick = () => { closeNotaSheet(); openTag(n.tagIdx); };
+    box.appendChild(row);
+  });
+}
+function generateNota(){
+  renderNotaList();
+  document.getElementById('nota-hint').textContent = 'Ultima generazione: adesso.';
+}
+renderNotaList();
+
+// Simulazione del tempo (timer di porzione + timer di sessione): attiva. Per sospenderla di
+// nuovo — es. per navigare nel prototipo con calma senza che scattino cambi automatici o il
+// blocco di sessione — basta rimettere questa costante a false.
+const simulaTempo = true;
+
+// ATTENZIONE — vincolo di design, non solo tecnico: questo intervallo deve restare FISSO
+// e prevedibile, mai randomizzato. È la base psicologica di tutto il meccanismo anti-scroll:
+// le ricompense a intervallo VARIABILE sono ciò che rende i social compulsivi (non sapere
+// mai quando arriva lo stimolo successivo); un intervallo fisso produce l'effetto opposto,
+// perché il cervello smette di controllare compulsivamente sapendo già quando arriverà la
+// prossima porzione. Qualunque futura "ottimizzazione" dell'engagement che introducesse
+// variabilità qui andrebbe contro il principio fondante del prodotto — non farlo.
+let porzioneDurata = 30, secondsLeft = 30;
+function updatePorzione(v){ porzioneDurata = parseInt(v); secondsLeft = porzioneDurata; saveLayout(); }
+function tickPorzione(){
+  if(!simulaTempo) return;
+  secondsLeft--; if(secondsLeft <= 0) secondsLeft = porzioneDurata;
+  const m = String(Math.floor(secondsLeft/60)).padStart(2,'0');
+  const sVal = String(secondsLeft%60).padStart(2,'0');
+  document.getElementById('timer-label').textContent = m+':'+sVal;
+  const progress = (porzioneDurata-secondsLeft)/porzioneDurata;
+  document.getElementById('hand-min').style.transform = `rotate(${progress*360}deg)`;
+  document.getElementById('hand-hour').style.transform = `rotate(${progress*90}deg)`;
+}
+setInterval(tickPorzione, 1000);
+
+let navSecondsLeft, waitSecondsLeft, inWait = false;
+// Timestamp reale (Date.now() + waitSecondsLeft*1000) calcolato nel momento in cui scatta il
+// blocco: a differenza di navSecondsLeft (che si ferma apposta in background, vedi tickSession),
+// il blocco è un vero timeout e deve restare valido anche chiudendo e riaprendo l'app — vedi
+// loadSessionState, che lo usa per ricalcolare waitSecondsLeft dal tempo di parete reale invece
+// di ripartire da capo.
+let lockoutEndsAt = null;
+// Riepilogo di fine sessione: invece di un muro asettico, la schermata di blocco chiude
+// il cerchio ricordando cosa si è fatto, così il limite si sente più come una conclusione
+// naturale che come un ostacolo imposto.
+let sessionTagsVisitati = new Set();
+let sessionSpuntiAperti = 0;
+function restartSession(){
+  const maxNav = parseInt(document.getElementById('input-maxnav').value) || 55;
+  navSecondsLeft = maxNav; inWait = false;
+  lockoutEndsAt = null;
+  sessionTagsVisitati = new Set();
+  sessionSpuntiAperti = 0;
+  sessionMicroVisitati = new Set();
+  microVersions = new Map(); // riavviare la sessione azzera anche le pagine di refresh conservate
+  renderVisitedRow();
+  renderOrganizePanel();
+  if(document.getElementById('tagview').classList.contains('active')) renderGridPages(currentTagIdx);
+  document.getElementById('lockout').classList.remove('active');
+  closeTopPanels();
+  // Le "schede" della sessione scaduta vengono cestinate per davvero anche nel cassetto
+  // persistito, non solo in memoria: altrimenti una sessione già scaduta potrebbe "rivivere"
+  // riaprendo l'app prima che loadSessionState() venga mai richiamata di nuovo.
+  saveSession();
+}
+function tickSession(){
+  if(!simulaTempo) return;
+  if(!inWait){
+    // Utilizzo netto: il conteggio si ferma se la scheda/app va in background (qui: perde
+    // visibilità), cosi' non si viene penalizzati per un'interruzione. Nel blocco successivo
+    // invece il tempo scorre sempre (vedi ramo "else"), perche' e' un vero timeout.
+    if(document.hidden) return;
+    if(navSecondsLeft === undefined) navSecondsLeft = parseInt(document.getElementById('input-maxnav').value) || 55;
+    navSecondsLeft--;
+    if(navSecondsLeft <= 0){
+      inWait = true;
+      waitSecondsLeft = parseInt(document.getElementById('input-wait').value) || 60;
+      lockoutEndsAt = Date.now() + waitSecondsLeft * 1000;
+      document.getElementById('lockout-recap').textContent =
+        `Hai esplorato ${sessionTagsVisitati.size} tag e aperto ${sessionSpuntiAperti} spunti in questa sessione.`;
+      document.getElementById('lockout').classList.add('active');
+    }
+  } else {
+    waitSecondsLeft--;
+    const m = String(Math.floor(Math.max(waitSecondsLeft,0)/60)).padStart(2,'0');
+    const sVal = String(Math.max(waitSecondsLeft,0)%60).padStart(2,'0');
+    document.getElementById('lockout-timer').textContent = m+':'+sVal;
+    if(waitSecondsLeft <= 0){ restartSession(); return; }
+  }
+  saveSession();
+}
+setInterval(tickSession, 1000);
+
+// --- Persistenza (localStorage) --------------------------------------------------------
+// Due cassetti separati, con vita diversa:
+//   - "layout" (aspetto, icone, impostazioni): non scade mai da solo, sopravvive per sempre
+//     finché l'utente non lo cambia.
+//   - "session" (crediti, tag/microcategorie esplorati, foto già risolte, timer di utilizzo/
+//     lockout): sopravvive a un refresh o a una chiusura dell'app, ma viene interamente
+//     sovrascritto/svuotato ogni volta che restartSession() scatta per davvero (lockout naturale
+//     o "Riavvia sessione ora") — le "schede" aperte in sessione si conservano solo finché non
+//     scade il tempo di utilizzo, esattamente come richiesto.
+// Entrambe le funzioni di salvataggio sono avvolte in try/catch: alcuni campi (icone/sfondi
+// caricati come data-URL) possono superare la quota di localStorage (privata/Safari/quota
+// piena) — in quel caso si fallisce in silenzio, mai un errore visibile, coerente con lo stile
+// difensivo già usato nel file per la rete (vedi commenti più sopra su resolveRealImage).
+const LAYOUT_KEY = 'smarchive:layout:v1';
+const SESSION_KEY = 'smarchive:session:v1';
+
+function saveLayout(){
+  try{
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+      pages, cols, clockPosition, showCreditsWidget, showLastWidget,
+      activeWallpaperId, customWallpaperDataUrl,
+      downloadedWallpaperIds: downloadedWallpapers.map(w => w.id),
+      downloadedMoodIds: moods.filter(m => m.id).map(m => m.id),
+      moodIdx,
+      downloadedEmojiSets,
+      maxCredits,
+      porzioneDurata,
+      maxNavMin: parseInt(document.getElementById('input-maxnav').value) || 55,
+      waitMin: parseInt(document.getElementById('input-wait').value) || 60,
+    }));
+  } catch(err){}
+}
+
+function loadLayoutState(){
+  try{
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(!s || typeof s !== 'object') return;
+
+    if(Array.isArray(s.pages) && s.pages.length) pages = s.pages;
+
+    if(Array.isArray(s.downloadedWallpaperIds)){
+      s.downloadedWallpaperIds.forEach(id => {
+        if(downloadedWallpapers.some(w => w.id === id)) return;
+        const p = pacchettiSfondo.find(x => x.id === id);
+        if(p) downloadedWallpapers.push(p);
+      });
+    }
+    if(Array.isArray(s.downloadedMoodIds)){
+      s.downloadedMoodIds.forEach(id => {
+        if(moods.some(m => m.id === id)) return;
+        const p = pacchettiCatalogo.find(x => x.id === id);
+        if(p) moods.push({ id:p.id, nome:p.nome, shape:p.shape, ringStyle:p.ringStyle, ringWidth:p.ringWidth, ring:p.ring, faceBg:p.faceBg, hand:p.hand, handStyle:p.handStyle, size:p.size });
+      });
+    }
+    if(Array.isArray(s.downloadedEmojiSets)){
+      s.downloadedEmojiSets.forEach(id => {
+        if(downloadedEmojiSets.includes(id)) return;
+        const p = pacchettiEmoji.find(x => x.id === id);
+        if(p){ downloadedEmojiSets.push(id); emojiScelte.push(...p.emojis); }
+      });
+    }
+    renderWallpaperRow();
+    renderMoodCards();
+
+    if(typeof s.customWallpaperDataUrl === 'string' && s.customWallpaperDataUrl){
+      customWallpaperDataUrl = s.customWallpaperDataUrl;
+      activeWallpaperId = null;
+      document.getElementById('screen').style.background = 'none';
+      document.getElementById('screen').style.backgroundImage = `url(${customWallpaperDataUrl})`;
+      document.querySelectorAll('.wp-swatch').forEach(el => el.classList.remove('active'));
+    } else if(typeof s.activeWallpaperId === 'string'){
+      const all = [...wallpaperBase, ...downloadedWallpapers];
+      const w = all.find(x => x.id === s.activeWallpaperId);
+      if(w) setWallpaper(w.preview || w.value, w.id, null);
+    }
+
+    if(typeof s.moodIdx === 'number' && moods[s.moodIdx]) setMood(s.moodIdx); else applyMood();
+    if(typeof s.cols === 'number'){ document.getElementById('input-size').value = s.cols; updateIconSize(s.cols); }
+    if(typeof s.clockPosition === 'string') setClockPosition(s.clockPosition);
+    if(typeof s.showCreditsWidget === 'boolean'){
+      showCreditsWidget = s.showCreditsWidget;
+      document.getElementById('toggle-credits-widget').checked = s.showCreditsWidget;
+    }
+    if(typeof s.showLastWidget === 'boolean'){
+      showLastWidget = s.showLastWidget;
+      document.getElementById('toggle-last-widget').checked = s.showLastWidget;
+    }
+    if(typeof s.maxCredits === 'number'){
+      document.getElementById('input-crediti').value = s.maxCredits;
+      updateCrediti(s.maxCredits);
+    }
+    if(typeof s.porzioneDurata === 'number'){
+      document.getElementById('input-porzione').value = s.porzioneDurata;
+      updatePorzione(s.porzioneDurata);
+    }
+    if(typeof s.maxNavMin === 'number') document.getElementById('input-maxnav').value = s.maxNavMin;
+    if(typeof s.waitMin === 'number') document.getElementById('input-wait').value = s.waitMin;
+
+    renderPages();
+    saveLayout(); // riscrive uno stato coerente, dopo le riscritture parziali innescate dagli hook sopra
+  } catch(err){}
+}
+
+function saveSession(){
+  try{
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      credits, currentTagIdx, currentGridPage,
+      tagviewActive: document.getElementById('tagview').classList.contains('active'),
+      sessionTagsVisitati: Array.from(sessionTagsVisitati),
+      sessionMicroVisitati: Array.from(sessionMicroVisitati),
+      microVersions: Object.fromEntries(microVersions),
+      lastCreditsInfo, lastDiscovery, sessionSpuntiAperti,
+      navSecondsLeft, inWait, waitSecondsLeft, lockoutEndsAt,
+    }));
+  } catch(err){}
+}
+
+function loadSessionState(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(!s || typeof s !== 'object') return;
+    // Un lockout già scaduto per tempo di parete reale (l'app era chiusa più a lungo dell'attesa
+    // residua) non va ripristinato: si riparte pulita, esattamente come se restartSession() fosse
+    // già scattato mentre l'app era chiusa.
+    if(s.inWait && typeof s.lockoutEndsAt === 'number' && s.lockoutEndsAt <= Date.now()) return;
+
+    if(typeof s.credits === 'number') credits = s.credits;
+    if(typeof s.currentTagIdx === 'number') currentTagIdx = s.currentTagIdx;
+    if(typeof s.currentGridPage === 'number') currentGridPage = s.currentGridPage;
+    if(Array.isArray(s.sessionTagsVisitati)) sessionTagsVisitati = new Set(s.sessionTagsVisitati);
+    if(Array.isArray(s.sessionMicroVisitati)) sessionMicroVisitati = new Set(s.sessionMicroVisitati);
+    if(s.microVersions && typeof s.microVersions === 'object') microVersions = new Map(Object.entries(s.microVersions));
+    if(s.lastCreditsInfo) lastCreditsInfo = s.lastCreditsInfo;
+    if(s.lastDiscovery) lastDiscovery = s.lastDiscovery;
+    if(typeof s.sessionSpuntiAperti === 'number') sessionSpuntiAperti = s.sessionSpuntiAperti;
+    if(typeof s.navSecondsLeft === 'number') navSecondsLeft = s.navSecondsLeft;
+    if(typeof s.inWait === 'boolean') inWait = s.inWait;
+    if(inWait && typeof s.lockoutEndsAt === 'number'){
+      lockoutEndsAt = s.lockoutEndsAt;
+      waitSecondsLeft = Math.max(0, Math.ceil((lockoutEndsAt - Date.now()) / 1000));
+      document.getElementById('lockout-recap').textContent =
+        `Hai esplorato ${sessionTagsVisitati.size} tag e aperto ${sessionSpuntiAperti} spunti in questa sessione.`;
+      document.getElementById('lockout').classList.add('active');
+    }
+
+    renderCredits();
+    renderVisitedRow();
+    renderOrganizePanel();
+    refreshWidgetTiles();
+    if(s.tagviewActive){
+      document.getElementById('home').classList.remove('active');
+      document.getElementById('tagview').classList.add('active');
+      renderGridPages(currentTagIdx, false);
+    }
+  } catch(err){}
+}
+
+// Sessione prima del layout: la vista/griglia eventualmente ripristinata da loadSessionState non
+// dipende da nessuno dei campi di loadLayoutState (icone home, aspetto), quindi l'ordine qui non
+// è delicato — ma tenerlo fisso rende il comportamento prevedibile.
+loadSessionState();
+loadLayoutState();
+</script>
+
+</body>
+</html>
