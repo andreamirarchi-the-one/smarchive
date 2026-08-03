@@ -18,7 +18,15 @@
 
   :root{ --ink:#211F1A; --ink-soft:#5B584E; --line:#DAD5C6; --olive:#5C6B4A; --olive-soft:#EBEEE3; --card:#FFFFFF; }
   *{box-sizing:border-box;}
-  body{ margin:0; background:#EDEAE1; font-family:'Inter',sans-serif; color:var(--ink); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; min-height:100vh; }
+  html{ overscroll-behavior:none; }
+  /* overscroll-behavior (non touch-action: sono due proprietà distinte) è quello che su
+     Chrome Android governa nello specifico il "pull to refresh" nativo quando si trascina
+     verso il basso dalla cima della pagina — touch-action:none sulla home (vedi sopra)
+     impedisce lo scroll/pan di default, ma da solo non basta sempre a sopprimere anche
+     questo comportamento di "aggiornamento" del browser stesso. Sicuro da mettere qui a
+     livello globale: non blocca lo scroll interno legittimo (.pages, #tagview, ecc.), solo
+     l'effetto di "rimbalzo"/refresh quando si trascina oltre i bordi della pagina intera. */
+  body{ margin:0; background:#EDEAE1; font-family:'Inter',sans-serif; color:var(--ink); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; min-height:100vh; overscroll-behavior:none; }
   .phone{ width:380px; background:#F6F3EC; border-radius:32px; border:1px solid var(--line); box-shadow:0 20px 60px rgba(33,31,26,0.15); overflow:hidden; position:relative; }
   .screen{ padding:20px 0 24px; min-height:660px; transition:background .3s; position:relative; background-size:cover; background-position:center; }
   .pad{ padding:0 20px; }
