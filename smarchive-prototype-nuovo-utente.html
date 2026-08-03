@@ -2391,6 +2391,19 @@ function isPopSlot(sIdx, microIdx, page){
 // di trovarne una davvero libera, senza mai sacrificare l'arresto al primo successo. preferPop
 // (di default false/omesso) prova prima le fonti pop mescolate, poi ricade comunque su quelle
 // cultura mescolate: una tile "pop" senza risultato non resta mai vuota.
+// Riserva finale quando anche la variante più ampia della query (il tema dell'intero
+// settore, vedi microQueryVariants) non produce più nulla di mai visto in questa sessione:
+// niente a che fare con la microcategoria di partenza, di proposito — sempre sulle sole
+// fonti pop, in ordine dal più mite al più eccentrico. Richiesta esplicita dell'utente:
+// meglio stupirsi con qualcosa di sempre più fuori tema che ritrovarsi la stessa foto due
+// volte o un placeholder finto rimasto lì in eterno.
+const FALLBACK_POP_QUERIES = [
+  'oddity curiosity vintage',
+  'unusual antique object',
+  'strange vintage photograph',
+  'bizarre roadside attraction',
+  'surreal vintage snapshot',
+];
 async function fetchPublicDomainImage(queryOrQueries, preferPop){
   if(typeof fetch === 'undefined') return null; // ambienti senza fetch: niente tentativo di rete
   const varianti = (Array.isArray(queryOrQueries) ? queryOrQueries : [queryOrQueries]).filter(Boolean);
@@ -2407,6 +2420,25 @@ async function fetchPublicDomainImage(queryOrQueries, preferPop){
         }
       } catch(err) {
         // una singola fonte irraggiungibile non deve bloccare le altre: si prova la successiva
+      }
+    }
+  }
+  // Bug corretto: qui prima si tornava null e la tile restava bloccata per sempre sul
+  // placeholder generico, senza che nessun refresh successivo la sistemasse mai. Ora si
+  // tenta la scaletta pop di riserva sopra, una query alla volta dalla più mite alla più
+  // eccentrica, fermandosi alla prima che produce qualcosa di davvero nuovo.
+  if(POP_IMAGE_SOURCES.length){
+    for(const fallbackQuery of FALLBACK_POP_QUERIES){
+      for(const source of shuffleArray(POP_IMAGE_SOURCES)){
+        try {
+          const result = await source(fallbackQuery);
+          if(result && !usedImageUrls.has(result.url)){
+            usedImageUrls.add(result.url);
+            return result;
+          }
+        } catch(err) {
+          // una singola fonte irraggiungibile qui non blocca le altre nella scaletta
+        }
       }
     }
   }
