@@ -40,7 +40,13 @@
      stacking di riferimento (position+z-index espliciti) così lo z-index negativo dello scrim
      resta sempre confinato sotto ai contenuti della home, senza sprofondare sotto l'intera pagina
      o dover toccare lo z-index di nessun altro elemento. Non tocca altre schermate. */
-  #home{ position:relative; z-index:0; }
+  /* touch-action:none qui è il pezzo mancante per i gesti a swipe custom della home (angoli
+     per Aspetto/Sessione, bordo basso per Nota su di te): senza, su un telefono vero il
+     browser può interpretare lo swipe verticale come scroll nativo o "pull to refresh" e
+     gestirlo lui stesso invece di lasciarlo al codice — mai riproducibile testando con
+     eventi sintetici da desktop, che non passano dal riconoscimento gesti nativo del touch.
+     .pages sotto riottiene esplicitamente lo scroll orizzontale nativo che le serve. */
+  #home{ position:relative; z-index:0; touch-action:none; }
   .home-bg-scrim{ position:absolute; inset:0; z-index:-1; background:rgba(246,243,236,0.55); backdrop-filter:blur(10px) saturate(1.05); -webkit-backdrop-filter:blur(10px) saturate(1.05); pointer-events:none; }
   .clock-center{ display:flex; flex-direction:column; align-items:center; margin:8px 0 20px; order:1; position:relative; transition:transform .2s ease, opacity .2s ease; }
   .clock-center.dragging{ opacity:.88; transition:none; z-index:5; }
@@ -75,7 +81,7 @@
   .clock-center p{ margin:0; font-size:12px; color:var(--ink-soft); text-align:center; }
   .clock-center span{ font-weight:500; color:var(--ink); }
 
-  .pages{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; }
+  .pages{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; touch-action:pan-x; }
   .pages::-webkit-scrollbar{ display:none; }
   .page{ flex:0 0 100%; scroll-snap-align:start; padding:0 20px; }
   .grid{ display:grid; gap:14px 10px; }
