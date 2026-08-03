@@ -368,6 +368,20 @@
   .lockout p{ font-size:12.5px; color:var(--ink-soft); margin:0; }
   .lockout .big{ font-size:26px; font-weight:500; margin:14px 0; font-family:'Fraunces',serif; }
   .lockout .recap{ color:var(--ink); font-weight:500; margin-bottom:6px; }
+
+  /* Il ".phone" con bordi arrotondati/ombra centrato nella pagina è un mockup pensato per
+     essere guardato su un browser desktop più largo: su un telefono vero (o installata come
+     PWA standalone) quello spazio attorno è lo schermo reale del device, non va mai mostrato
+     come margine — il device stesso è già la cornice. Qui il "telefono" diventa lo schermo
+     intero: niente più bordi/ombra/padding del body, e le viste che avevano un'altezza
+     minima calibrata sul mockup (616/660px) si estendono invece all'altezza reale disponibile. */
+  @media (max-width: 700px), (display-mode: standalone){
+    body{ padding:0; }
+    .phone{ width:100%; max-width:100%; min-height:100vh; height:100dvh; border-radius:0; border:none; box-shadow:none; }
+    .screen{ min-height:100%; height:100%; }
+    #home.active{ min-height:100%; }
+    #tagview{ max-height:100%; height:100%; }
+  }
 </style>
 </head>
 <body>
