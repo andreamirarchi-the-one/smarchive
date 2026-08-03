@@ -3198,7 +3198,13 @@ function renderPhotoList(){
 // piena) — in quel caso si fallisce in silenzio, mai un errore visibile, coerente con lo stile
 // difensivo già usato nel file per la rete (vedi commenti più sopra su resolveRealImage).
 const LAYOUT_KEY = 'smarchive:layout:v1';
-const SESSION_KEY = 'smarchive:session:v1';
+// v2 (non più v1): quando il significato di navSecondsLeft/waitSecondsLeft è cambiato da
+// "1 unità di input = 1 secondo" (demo accelerata) a "1 unità di input = 1 minuto reale",
+// i dati di sessione già salvati con la vecchia scala restavano sul device (pochi secondi
+// residui invece di 55 minuti) — bastava aprire l'app e navigare per pochissimo per
+// ritrovarsi già bloccati. Cambiare chiave li rende semplicemente invisibili al codice
+// nuovo: si riparte puliti, senza dover interpretare/migrare un formato ambiguo.
+const SESSION_KEY = 'smarchive:session:v2';
 
 function saveLayout(){
   try{
