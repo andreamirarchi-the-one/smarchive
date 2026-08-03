@@ -168,6 +168,22 @@
   .nota-desc{ font-size:11.5px; color:var(--ink-soft); margin:0 0 6px; line-height:1.42; }
   .nota-explore{ font-size:11px; font-weight:500; color:var(--olive); background:none; border:none; padding:0; cursor:pointer; font-family:'Inter',sans-serif; }
 
+  /* "Le tue foto caricate": stesse righe "tipo file excel" di .nota-row sopra, qui applicate
+     alle foto che l'utente ha caricato sulle proprie icone (mai le emoji, mai le foto reali
+     pescate navigando) — priorità a tag e azioni, mai un layout decorativo. */
+  .photo-mgmt-row{ display:flex; align-items:flex-start; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .photo-mgmt-row:last-child{ border-bottom:none; }
+  .photo-mgmt-thumb{ width:44px; height:44px; border-radius:8px; background-size:cover; background-position:center; flex-shrink:0; border:1px solid var(--line); }
+  .photo-mgmt-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .photo-mgmt-tags{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .photo-mgmt-tags .tag-chip{ padding:4px 9px; font-size:10.5px; cursor:pointer; }
+  .photo-mgmt-addtag{ width:22px; height:22px; border-radius:50%; border:1px dashed var(--line); background:none; color:var(--ink-soft); font-size:12px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  .photo-mgmt-actions{ display:flex; flex-wrap:wrap; gap:6px; }
+  .photo-mgmt-actions button{ font-size:10.5px; font-weight:500; padding:5px 9px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink-soft); cursor:pointer; }
+  .photo-mgmt-actions button:disabled{ opacity:.35; cursor:default; }
+  .photo-mgmt-actions button.danger{ color:#B23B3B; border-color:#B23B3B; }
+  .photo-mgmt-empty{ font-size:12px; color:var(--ink-soft); text-align:center; padding:40px 0; }
+
   .view{ display:none; }
   .view.active{ display:block; }
   .back-row{ display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer; }
@@ -466,6 +482,16 @@
       </div>
     </div>
 
+    <!-- "Le tue foto caricate": elenco tipo excel delle foto che l'utente ha caricato sulle
+         proprie icone (mai le emoji, mai le foto reali pescate navigando) — vedi renderPhotoList.
+         Raggiungibile solo dal link discreto dentro "Nota su di te" (mai un'icona in evidenza). -->
+    <div id="photolist" class="view pad">
+      <div class="back-row" onclick="closePhotoList()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Home</span></div>
+      <div class="tag-title"><h2>Le tue foto caricate</h2></div>
+      <p class="subtitle">Solo le foto che hai scelto per le tue icone — non le emoji, non le foto scoperte navigando.</p>
+      <div id="photolist-rows"></div>
+    </div>
+
     <div class="top-panel-bg" id="top-panel-bg" onclick="closeTopPanels()"></div>
 
     <!-- Swipe-down dall'angolo in alto a sinistra: Aspetto (sfondo, icone, orologio) -->
@@ -525,10 +551,9 @@
 
         <p class="section-label">Sessione</p>
         <div class="field-row"><span class="row-label">Utilizzo netto massimo (min)</span><input type="number" min="5" max="180" value="55" id="input-maxnav" onchange="saveLayout()"></div>
-        <p class="hint">Si ferma se l'app va in background: conta solo il tempo di utilizzo reale, non l'orologio a muro.</p>
+        <p class="hint">Conta solo il tempo passato sulle griglie e sulle singole foto — home, aspetto e modifica icone restano sempre libere. Si ferma anche se l'app va in background.</p>
         <div class="field-row"><span class="row-label">Blocco dopo il limite (min)</span><input type="number" min="5" max="240" value="60" id="input-wait" onchange="saveLayout()"></div>
         <p class="hint">Questo invece scorre sempre, anche in background: è un vero timeout, non aggirabile chiudendo l'app.</p>
-        <p class="hint">Demo accelerata: 1 minuto reale = 1 secondo qui, per poter provare il blocco senza aspettare davvero.</p>
         <button class="ghost-btn" onclick="restartSession()">Riavvia sessione ora</button>
       </div>
     </div>
@@ -558,6 +583,13 @@
            e/o un estratto — mai un testo di riempimento inventato per compensarne l'assenza. -->
       <a class="fs-source-link" id="fs-source-link" href="#" target="_blank" rel="noopener"></a>
       <p class="fs-source-excerpt" id="fs-source-excerpt"></p>
+      <!-- Scarica sul device la foto reale mostrata — mai un salvataggio dentro l'app stessa,
+           vedi downloadCurrentPhoto: nessuna scrittura in pages/localStorage. Visibile solo
+           quando esiste davvero una foto reale risolta (mai per il placeholder picsum). -->
+      <button class="glass-chip-dark" id="fs-download-btn" style="display:none; margin-bottom:14px;" onclick="downloadCurrentPhoto()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+        <span id="fs-download-label">Scarica</span>
+      </button>
       <!-- Nessun collegamento a un profilo social: "Assaggia il profilo" e il link "profilo
            originale" portavano solo a un account finto ("Marco in viaggio") mai esistito nella
            realtà — mai fabbricare un profilo per compensarne l'assenza, quindi qui non resta
@@ -704,6 +736,9 @@
       <div id="nota-list"></div>
       <button class="ghost-btn" onclick="generateNota()">Genera nuove osservazioni</button>
       <p class="hint" id="nota-hint">Ultima generazione: adesso.</p>
+      <div class="quiet-link-row">
+        <button class="quiet-link" onclick="closeNotaSheet(); openPhotoList();">Le tue foto caricate →</button>
+      </div>
       <button class="close-sheet" onclick="closeNotaSheet()">Chiudi</button>
     </div>
   </div>
@@ -713,7 +748,6 @@
     <p class="recap" id="lockout-recap">Hai esplorato 0 tag e aperto 0 spunti in questa sessione.</p>
     <p>Torna tra:</p>
     <div class="big" id="lockout-timer">60:00</div>
-    <p>(demo accelerata: minuti reali → secondi)</p>
   </div>
 </div>
 
@@ -2390,6 +2424,9 @@ function hostnameOf(url){
 // alla riapertura istantanea di una versione già nota (nessuna nuova richiesta di rete).
 function applyRealImageToFullscreen(result){
   document.getElementById('fs-img').style.backgroundImage = `url(${result.url})`;
+  window._fsCurrentResult = result;
+  const downloadBtn = document.getElementById('fs-download-btn');
+  if(downloadBtn) downloadBtn.style.display = 'inline-flex';
   const credit = document.getElementById('fs-credit');
   credit.textContent = 'Foto reale, pubblico dominio — ' + result.credit;
   credit.style.display = 'block';
@@ -2411,6 +2448,38 @@ function applyRealImageToFullscreen(result){
   // l'immagine (link e/o estratto) — mai come promessa vuota.
   const depthHint = document.getElementById('fs-depth-hint');
   if(depthHint) depthHint.style.display = (result.pageUrl || result.excerpt) ? 'flex' : 'none';
+}
+// Scarica la foto reale corrente sul device dell'utente — mai una collezione dentro
+// l'app: nessuna scrittura in pages/microVersions/localStorage qui, solo un salvataggio
+// verso il filesystem del telefono/computer. Prima si tenta un vero download (fetch del
+// file → blob → link sintetico con l'attributo download, che forza il salvataggio invece
+// di aprire la foto): funziona quando il CDN della fonte permette la lettura cross-origin
+// del file immagine. Se fallisce (CORS o rete) si ricade sull'apertura della foto in una
+// nuova scheda: l'utente arriva comunque all'originale e può salvarla con il gesto nativo
+// del telefono (pressione prolungata) — mai un vicolo cieco silenzioso.
+async function downloadCurrentPhoto(){
+  const result = window._fsCurrentResult;
+  if(!result || !result.url) return;
+  const label = document.getElementById('fs-download-label');
+  const labelPrima = label ? label.textContent : null;
+  try {
+    const res = await fetch(result.url);
+    if(!res.ok) throw new Error('rete');
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = 'smarchive-' + (window._currentSeed || Date.now()) + '.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+    if(label){ label.textContent = 'Scaricata ✓'; setTimeout(() => { label.textContent = labelPrima; }, 2000); }
+  } catch(err) {
+    // Fonte che non permette la lettura cross-origin del file, o rete assente: si apre
+    // comunque la foto originale, mai un errore visibile all'utente.
+    window.open(result.url, '_blank', 'noopener');
+  }
 }
 // forcedVersionIdx: usata da renderGridPages per aprire la versione esatta mostrata in quella
 // pagina (invece dell'ultima) quando si tocca una foto — il seed reale viene comunque sempre
@@ -2442,6 +2511,9 @@ function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
   document.getElementById('fs-source-link').textContent = '';
   document.getElementById('fs-source-excerpt').style.display = 'none';
   document.getElementById('fs-source-excerpt').textContent = '';
+  window._fsCurrentResult = null;
+  const downloadBtn0 = document.getElementById('fs-download-btn');
+  if(downloadBtn0) downloadBtn0.style.display = 'none';
   const depthHint0 = document.getElementById('fs-depth-hint');
   if(depthHint0) depthHint0.style.display = 'none';
   if(window._resetFullscreenZoom) window._resetFullscreenZoom(); // ogni apertura riparte da 1x
@@ -2913,8 +2985,18 @@ let lockoutEndsAt = null;
 // naturale che come un ostacolo imposto.
 let sessionTagsVisitati = new Set();
 let sessionSpuntiAperti = 0;
+// Conta verso il tempo di utilizzo netto solo mentre si è davvero dentro la griglia di un
+// tag o lo schermo intero di una foto: home, aspetto e modifica icone restano sempre
+// liberi, per quanto tempo ci si resti (richiesta esplicita dell'utente).
+function isBrowsingView(){
+  return document.getElementById('tagview').classList.contains('active')
+    || document.getElementById('fullscreen').classList.contains('active');
+}
 function restartSession(){
-  const maxNav = parseInt(document.getElementById('input-maxnav').value) || 55;
+  // I campi impostazioni sono in minuti reali (non più il "secondo = minuto" della demo
+  // accelerata di una fase precedente): il valore in UI corrisponde da qui in poi
+  // esattamente ai minuti effettivi di navigazione consentiti.
+  const maxNav = (parseInt(document.getElementById('input-maxnav').value) || 55) * 60;
   navSecondsLeft = maxNav; inWait = false;
   lockoutEndsAt = null;
   sessionTagsVisitati = new Set();
@@ -2937,12 +3019,12 @@ function tickSession(){
     // Utilizzo netto: il conteggio si ferma se la scheda/app va in background (qui: perde
     // visibilità), cosi' non si viene penalizzati per un'interruzione. Nel blocco successivo
     // invece il tempo scorre sempre (vedi ramo "else"), perche' e' un vero timeout.
-    if(document.hidden) return;
-    if(navSecondsLeft === undefined) navSecondsLeft = parseInt(document.getElementById('input-maxnav').value) || 55;
+    if(document.hidden || !isBrowsingView()) return;
+    if(navSecondsLeft === undefined) navSecondsLeft = (parseInt(document.getElementById('input-maxnav').value) || 55) * 60;
     navSecondsLeft--;
     if(navSecondsLeft <= 0){
       inWait = true;
-      waitSecondsLeft = parseInt(document.getElementById('input-wait').value) || 60;
+      waitSecondsLeft = (parseInt(document.getElementById('input-wait').value) || 60) * 60;
       lockoutEndsAt = Date.now() + waitSecondsLeft * 1000;
       document.getElementById('lockout-recap').textContent =
         `Hai esplorato ${sessionTagsVisitati.size} tag e aperto ${sessionSpuntiAperti} spunti in questa sessione.`;
@@ -2958,6 +3040,122 @@ function tickSession(){
   saveSession();
 }
 setInterval(tickSession, 1000);
+
+// --- "Le tue foto caricate" -------------------------------------------------------------
+// Nessuna nuova collezione dati: resta una vista filtrata/ordinata sopra le icone già
+// esistenti in `pages` (vedi saveIconSheet). Solo le icone con una foto propria caricata
+// (ic.image truthy) compaiono qui — non le emoji, non le foto reali pescate navigando
+// (quelle il pulsante "Scarica" in schermo intero le manda solo al device, mai qui dentro,
+// vedi downloadCurrentPhoto). `personalOrder` è l'unico campo nuovo sull'icona: un ordine
+// indipendente da quello reale in home (richiesta esplicita), assegnato la prima volta che
+// una foto compare in questa lista e poi scambiato tra le due righe coinvolte a ogni
+// spostamento — mai un salvataggio a parte, viaggia con l'icona dentro `pages` e persiste
+// già gratuitamente tramite saveLayout()/loadLayoutState().
+let photoListPickerFor = null; // "pageIdx|iconIdx" della riga con il selettore "+" tag aperto, o null
+function openPhotoList(){
+  photoListPickerFor = null;
+  document.getElementById('home').classList.remove('active');
+  document.getElementById('tagview').classList.remove('active');
+  document.getElementById('photolist').classList.add('active');
+  renderPhotoList();
+}
+function closePhotoList(){
+  document.getElementById('photolist').classList.remove('active');
+  document.getElementById('home').classList.add('active');
+}
+function collectUploadedPhotos(){
+  const rows = [];
+  pages.forEach((page, pageIdx) => {
+    page.forEach((icon, iconIdx) => {
+      if(icon.image) rows.push({ icon, pageIdx, iconIdx });
+    });
+  });
+  rows.forEach((r, i) => { if(typeof r.icon.personalOrder !== 'number') r.icon.personalOrder = i; });
+  rows.sort((a, b) => a.icon.personalOrder - b.icon.personalOrder);
+  return rows;
+}
+function movePhotoRow(rows, idx, direction){
+  const targetIdx = idx + direction;
+  if(targetIdx < 0 || targetIdx >= rows.length) return;
+  const a = rows[idx].icon, b = rows[targetIdx].icon;
+  const tmp = a.personalOrder; a.personalOrder = b.personalOrder; b.personalOrder = tmp;
+  saveLayout();
+  renderPhotoList();
+}
+function renderPhotoList(){
+  const box = document.getElementById('photolist-rows');
+  if(!box) return;
+  const rows = collectUploadedPhotos();
+  box.innerHTML = '';
+  if(rows.length === 0){
+    box.innerHTML = '<p class="photo-mgmt-empty">Nessuna foto caricata ancora. Le foto che scegli per le tue icone (in "Modifica icone") compariranno qui.</p>';
+    return;
+  }
+  rows.forEach(({ icon, pageIdx, iconIdx }, listIdx) => {
+    const rowKey = pageIdx + '|' + iconIdx;
+    const pickerOpen = photoListPickerFor === rowKey;
+    const canAddTag = icon.settori.length < 3;
+    const tagsHtml = icon.settori.map(sIdx =>
+      `<span class="tag-chip selected photo-mgmt-tag-remove" data-sidx="${sIdx}" title="Tocca per rimuovere"><span class="tc-dot" style="background:${settori[sIdx].colore}"></span>${settori[sIdx].nome}</span>`
+    ).join('');
+    let addAreaHtml = '';
+    if(pickerOpen){
+      addAreaHtml = settori.map((s, sIdx) => icon.settori.includes(sIdx) ? '' :
+        `<span class="tag-chip photo-mgmt-tag-add" data-sidx="${sIdx}"><span class="tc-dot" style="background:${s.colore}"></span>${s.nome}</span>`
+      ).join('');
+    } else if(canAddTag){
+      addAreaHtml = '<button class="photo-mgmt-addtag" title="Aggiungi tag">+</button>';
+    }
+    const row = document.createElement('div');
+    row.className = 'photo-mgmt-row';
+    row.innerHTML = `
+      <div class="photo-mgmt-thumb" style="background-image:url(${icon.image})"></div>
+      <div class="photo-mgmt-body">
+        <div class="photo-mgmt-tags">${tagsHtml}${addAreaHtml}</div>
+        <div class="photo-mgmt-actions">
+          <button class="photo-mgmt-replace">Sostituisci foto</button>
+          <button class="photo-mgmt-up" ${listIdx === 0 ? 'disabled' : ''}>Sposta su</button>
+          <button class="photo-mgmt-down" ${listIdx === rows.length - 1 ? 'disabled' : ''}>Sposta giù</button>
+          <button class="danger photo-mgmt-delete">Elimina</button>
+        </div>
+      </div>
+      <input type="file" accept="image/*" class="photo-mgmt-file-input" style="display:none">
+    `;
+    row.querySelectorAll('.photo-mgmt-tag-remove').forEach(chip => {
+      chip.onclick = () => {
+        const sIdx = Number(chip.dataset.sidx);
+        icon.settori = icon.settori.filter(x => x !== sIdx);
+        // Se una microcategoria apparteneva al settore appena tolto, va rimossa insieme —
+        // stessa regola già in vigore nell'editor icona (vedi renderTagChips).
+        icon.microcategorie = (icon.microcategorie || []).filter(key => icon.settori.includes(Number(key.split('|')[0])));
+        saveLayout(); renderPages(); renderPhotoList();
+      };
+    });
+    row.querySelectorAll('.photo-mgmt-tag-add').forEach(chip => {
+      chip.onclick = () => {
+        icon.settori.push(Number(chip.dataset.sidx));
+        photoListPickerFor = null;
+        saveLayout(); renderPages(); renderPhotoList();
+      };
+    });
+    const addBtn = row.querySelector('.photo-mgmt-addtag');
+    if(addBtn) addBtn.onclick = () => { photoListPickerFor = rowKey; renderPhotoList(); };
+    row.querySelector('.photo-mgmt-replace').onclick = () => row.querySelector('.photo-mgmt-file-input').click();
+    row.querySelector('.photo-mgmt-file-input').onchange = (e) => {
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { icon.image = reader.result; saveLayout(); renderPages(); renderPhotoList(); };
+      reader.readAsDataURL(file);
+    };
+    row.querySelector('.photo-mgmt-up').onclick = () => movePhotoRow(rows, listIdx, -1);
+    row.querySelector('.photo-mgmt-down').onclick = () => movePhotoRow(rows, listIdx, 1);
+    row.querySelector('.photo-mgmt-delete').onclick = () => {
+      pages[pageIdx].splice(iconIdx, 1);
+      saveLayout(); renderPages(); renderPhotoList();
+    };
+    box.appendChild(row);
+  });
+}
 
 // --- Persistenza (localStorage) --------------------------------------------------------
 // Due cassetti separati, con vita diversa:
