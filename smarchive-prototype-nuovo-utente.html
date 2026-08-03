@@ -3375,11 +3375,13 @@ function loadSessionState(){
     renderVisitedRow();
     renderOrganizePanel();
     refreshWidgetTiles();
-    if(s.tagviewActive){
-      document.getElementById('home').classList.remove('active');
-      document.getElementById('tagview').classList.add('active');
-      renderGridPages(currentTagIdx, false);
-    }
+    // Bug corretto: riaprire l'app (icona home, link, refresh) atterrava dritto sulla
+    // griglia dell'ultimo tag aperto invece che sulla home, come se si fosse scelto di
+    // saltare la home ogni volta — un'apertura dell'app dovrebbe sempre partire da lì.
+    // Crediti/foto già risolte/tag e microcategorie esplorate restano comunque tutti
+    // ripristinati sopra: riaprendo lo stesso tag a mano si ritrova tutto esattamente
+    // come prima, senza nessuna nuova chiamata di rete — cambia solo cosa si vede subito
+    // all'apertura, non cosa viene conservato.
   } catch(err){}
 }
 
