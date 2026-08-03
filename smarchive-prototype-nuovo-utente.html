@@ -242,7 +242,7 @@
      -6px riporta il pulsante esattamente dove stava visivamente prima, 14px dal vero bordo dello
      schermo. Vedi anche EDGE in initTopPanelGestures più sotto nello script: deve coprire tutta
      l'altezza reale del pulsante (14–42px), non fermarsi a metà come faceva prima. */
-  .glass-corner-hint{ position:absolute; top:-6px; width:28px; height:28px; padding:0; justify-content:center; pointer-events:none; z-index:3; }
+  .glass-corner-hint{ position:absolute; top:-6px; width:28px; height:28px; padding:0; margin:0; justify-content:center; z-index:3; }
   .glass-corner-hint-left{ left:16px; }
   .glass-corner-hint-right{ right:16px; }
   /* Era solo un indizio decorativo (pointer-events:none) sopra home-indicator, per lo swipe-up
@@ -425,15 +425,19 @@
            l'orologio (vedi clockface), e l'angolo in alto a destra viene lasciato libero per lo
            swipe-down che apre il pannello "Navigazione e sessione" (vedi initTopPanelGestures) —
            le due affordance nello stesso angolo si sarebbero solo pestate i piedi a vicenda. -->
-      <!-- Indicatori glass discreti (decorativi, pointer-events:none): segnalano la presenza
-           delle tendine nascoste in alto a sx (Aspetto) e a dx (Navigazione e sessione), senza
-           interferire con il gesto di swipe-down già gestito da initTopPanelGestures. -->
-      <div class="glass-chip glass-corner-hint glass-corner-hint-left" title="Scorri giù: Aspetto">
+      <!-- Veri pulsanti (non più solo indizi decorativi): premerli apre direttamente il
+           pannello, senza dover per forza riuscire nel gesto di swipe-down (che resta comunque
+           valido in alternativa, gestito da initTopPanelGestures). Lo stopPropagation va su
+           pointerdown, non (solo) su click: il gestore del gesto sottostante reagisce già al
+           pointerdown stesso (per riconoscere trascinamento vs tap), che altrimenti arriverebbe
+           comunque a #screen per bubbling PRIMA che scatti il click — aprendo/ciclando il
+           pannello due volte in un colpo solo invece di una. -->
+      <button class="glass-chip glass-corner-hint glass-corner-hint-left" title="Aspetto" onpointerdown="event.stopPropagation();" onclick="openTopPanel('aspetto');">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div class="glass-chip glass-corner-hint glass-corner-hint-right" title="Scorri giù: Navigazione e sessione">
+      </button>
+      <button class="glass-chip glass-corner-hint glass-corner-hint-right" title="Navigazione e sessione" onpointerdown="event.stopPropagation();" onclick="openTopPanel('navsessione');">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
+      </button>
       <header class="pad">
         <div class="done-chip" id="done-chip" onclick="toggleEdit()">Fatto</div>
       </header>
