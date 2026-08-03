@@ -3360,9 +3360,27 @@ loadLayoutState();
 // Registrazione PWA: guardata da 'serviceWorker' in navigator, così su un browser che non
 // lo supporta (o aprendo il file direttamente da file://, dove i service worker non si
 // registrano per mancanza di un contesto sicuro) l'app resta identica, nessun errore.
+//
+// Bug corretto: rendere sw.js "rete-prima" (vedi sw.js) non bastava da solo — il file
+// sw.js STESSO poteva restare bloccato nella cache HTTP del browser, quindi il telefono non
+// si accorgeva mai che esisteva una versione più nuova del service worker da installare, e
+// continuava a usare quello vecchio (cache-prima) all'infinito. updateViaCache:'none' vieta
+// al browser di servire sw.js dalla cache; reg.update() forza subito un controllo invece di
+// aspettare il ciclo interno (lento/raro) del browser; l'ascoltatore su controllerchange
+// ricarica la pagina UNA volta sola non appena il nuovo service worker prende davvero il
+// controllo, così l'aggiornamento è visibile subito, senza dover riaprire l'app a mano una
+// seconda volta.
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update().catch(() => {}))
+      .catch(() => {});
+  });
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(swReloaded) return;
+    swReloaded = true;
+    window.location.reload();
   });
 }
 </script>
