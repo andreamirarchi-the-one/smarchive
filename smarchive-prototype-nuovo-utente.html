@@ -678,7 +678,10 @@
   </div>
 
   <!-- ricerca: autocomplete su lista chiusa + vista alfabetica completa -->
-  <div class="search-sheet" id="search-sheet">
+  <!-- onclick sul backdrop stesso, non sulla sheet-card: si chiude solo toccando lo spazio
+       vuoto sopra la card (event.target === this esclude i click che arrivano dai figli),
+       senza dover per forza scorrere fino al pulsante "Chiudi" in fondo. -->
+  <div class="search-sheet" id="search-sheet" onclick="if(event.target === this) closeSearchSheet();">
     <div class="sheet-card">
       <div class="sheet-handle"></div>
       <h3 class="title-h">Cerca</h3>
@@ -748,6 +751,9 @@
     <p class="recap" id="lockout-recap">Hai esplorato 0 tag e aperto 0 spunti in questa sessione.</p>
     <p>Torna tra:</p>
     <div class="big" id="lockout-timer">60:00</div>
+    <!-- Il blocco vale solo per griglie/foto (vedi isBrowsingView): la home resta sempre
+         raggiungibile, anche durante l'attesa — vedi goHomeDuringLockout. -->
+    <button class="quiet-link" style="margin-top:18px;" onclick="goHomeDuringLockout()">Torna alla home</button>
   </div>
 </div>
 
@@ -1855,7 +1861,22 @@ document.getElementById('grid-pages').addEventListener('scroll', function(){
   const p = Math.round(this.scrollLeft / (this.clientWidth || 1));
   if(p !== currentGridPage){ currentGridPage = p; renderGridPageDots(this.children.length); }
 });
+// Durante il blocco di sessione la home resta sempre raggiungibile (richiesta esplicita):
+// nasconde il lockout e qualunque vista di navigazione, mostra la home. inWait resta vero
+// finché il tempo non scade davvero — vedi il controllo in openTag/openFullscreen, che
+// impedisce di rientrare in griglia/schermo intero finché dura l'attesa.
+function goHomeDuringLockout(){
+  document.getElementById('lockout').classList.remove('active');
+  document.getElementById('tagview').classList.remove('active');
+  document.getElementById('fullscreen').classList.remove('active');
+  const pl = document.getElementById('photolist');
+  if(pl) pl.classList.remove('active');
+  document.getElementById('home').classList.add('active');
+}
 function openTag(idx){
+  // Il blocco vale per griglie/foto, mai per la home: se il tempo di attesa non è ancora
+  // scaduto, si ripropone il lockout invece di aprire davvero il tag.
+  if(inWait){ document.getElementById('lockout').classList.add('active'); return; }
   currentTagIdx = idx;
   credits = maxCredits; renderCredits();
   // Bug corretto: tagview va reso visibile PRIMA di renderGridPages, non dopo. Lo scroll
@@ -1983,6 +2004,7 @@ function renderVisitedRow(){
   box.innerHTML = `<p class="hint" style="margin:10px 0 6px;">Microcategorie esplorate in questa sessione — sempre raggiungibili:</p><div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>`;
 }
 function openTagRevisit(idx){
+  if(inWait){ document.getElementById('lockout').classList.add('active'); return; }
   currentTagIdx = idx;
   renderGridPages(idx);
   lastCreditsInfo = { idx };
@@ -2485,6 +2507,9 @@ async function downloadCurrentPhoto(){
 // pagina (invece dell'ultima) quando si tocca una foto — il seed reale viene comunque sempre
 // riletto dalla versione stessa, mai da quello passato dal chiamante.
 function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
+  // Stesso blocco di openTag: anche il widget "Ultima scoperta" in home apre lo schermo
+  // intero direttamente, senza passare dalla griglia — va comunque impedito durante l'attesa.
+  if(inWait){ document.getElementById('lockout').classList.add('active'); return; }
   const settoreIdx = settori.indexOf(settore);
   const micro = (microIdx !== undefined && microIdx !== null) ? microCategorie[settoreIdx][microIdx] : null;
   const key = (microIdx !== undefined && microIdx !== null) ? (settoreIdx + '|' + microIdx) : null;
