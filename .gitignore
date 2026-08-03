@@ -1,0 +1,20 @@
+node_modules/
+
+# Android build output (rigenerato da gradlew, non va versionato)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+
+# iOS build output
+ios/App/build/
+ios/App/DerivedData/
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+
+# www è generato da `npm run sync-web` a partire dal file HTML sorgente: non va
+# versionato due volte, la fonte di verità resta smarchive-prototype-nuovo-utente.html.
+www/

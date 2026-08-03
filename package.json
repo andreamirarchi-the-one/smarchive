@@ -1,0 +1,20 @@
+{
+  "name": "smarchive",
+  "version": "1.0.0",
+  "description": "Archivio di immagini reali di pubblico dominio, organizzato per macro e microcategorie.",
+  "private": true,
+  "scripts": {
+    "sync-web": "rm -rf www && mkdir www && cp smarchive-prototype-nuovo-utente.html www/index.html && cp manifest.json sw.js www/ && cp -r icons www/icons",
+    "cap:sync": "npm run sync-web && npx cap sync"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0"
+  }
+}
