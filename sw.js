@@ -4,7 +4,14 @@
 // intercettate: per quelle l'event listener sotto non chiama event.respondWith, quindi
 // vanno dritte alla rete come farebbero senza service worker, senza mai restituire una
 // foto vecchia al posto di un errore di rete onesto.
-const CACHE_NAME = 'smarchive-shell-v1';
+//
+// Rete-prima, non cache-prima (bug corretto): con "cache-prima" ogni aggiornamento
+// pubblicato impiegava DUE riaperture dell'app per essere visibile davvero (la prima
+// mostrava ancora la versione precedente e solo in sottofondo scaricava quella nuova) —
+// durante lo sviluppo attivo questo ha fatto sembrare "non risolti" bug già corretti e
+// pubblicati. Ora si tenta sempre prima la rete: se c'è connessione, l'app aperta è sempre
+// quella appena pubblicata; la cache resta solo come rete di sicurezza per l'uso offline.
+const CACHE_NAME = 'smarchive-shell-v2';
 const SHELL_ASSETS = [
   './smarchive-prototype-nuovo-utente.html',
   './manifest.json',
@@ -38,14 +45,11 @@ self.addEventListener('fetch', (event) => {
   if (!isShellAsset) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone())).catch(() => {});
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request, { cache: 'no-store' })
+      .then((res) => {
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone())).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
