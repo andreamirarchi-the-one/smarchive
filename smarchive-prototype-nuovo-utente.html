@@ -827,22 +827,28 @@ const EMOJI_KEYWORDS = {
 // luminosità rispetto al colore base del settore, usata sia per il pallino del chip sia per
 // l'ordinamento "per somiglianza cromatica" nella vista organizzata.
 const microCategorie = {
-  // cibo — direzione rivista col brief del 2026-08-04: non più foto documentarie, ma opere
-  // d'arte (dipinti di genere, nature morte, vanitas) e stampe/incisioni sullo stesso
-  // registro, intorno al tema di consumare/assorbire/rifiutare il cibo — la vanitas in
-  // particolare lavora da secoli proprio su eccesso, decadimento e rifiuto. Ogni `img` mette
-  // prima le frasi già verificate dal vivo (danno davvero un dipinto o una stampa pertinenti
-  // su Met/Wikimedia), poi ricade sulle varianti più generiche di prima come rete di sicurezza.
+  // cibo — direzione rivista col brief del 2026-08-04: non più foto documentarie generiche,
+  // ma tre registri intrecciati sul tema di consumare/assorbire/rifiutare il cibo — opere
+  // d'arte (dipinti di genere, nature morte, vanitas: il genere che da secoli lavora proprio
+  // su eccesso/decadimento/rifiuto), stampe/incisioni sullo stesso registro, e fotografia
+  // documentaria di forte caratura sul folklore del cibo (lavoro nei campi, venditori
+  // ambulanti, condizioni di vita — mai scatti-cartolina). Ogni `img` mette prima le frasi
+  // già verificate dal vivo (danno davvero un risultato pertinente sulle fonti reali), poi
+  // ricade sulle varianti più generiche come rete di sicurezza. Le query di fotografia
+  // documentaria sulle fonti "pop" (Flickr/Openverse/Internet Archive) sono meno precise di
+  // quelle sui musei: verificate una per una, scartate quelle che restituivano risultati
+  // fuori tema pur "funzionando" tecnicamente (una mappa, un bollettino, un progetto
+  // fotografico generico — vedi commit precedente).
   0: [
-    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street vendor engraving', 'market scene genre art', 'street food']},
-    {nome:'colazioni', sfumatura:14, img:['breakfast still life painting', 'still life etching breakfast', 'breakfast genre painting', 'morning meal genre painting', 'still life food painting']},
-    {nome:'ricette di casa', sfumatura:-6, img:['kitchen scene genre painting', 'domestic meal genre painting', 'cook genre painting']},
-    {nome:'dolci', sfumatura:22, img:['vanitas print engraving', 'vanitas still life dessert', 'sweet temptation still life painting', 'gluttony allegory painting']},
-    {nome:'osterie di quartiere', sfumatura:-14, img:['tavern scene genre painting', 'tavern scene engraving', 'feast genre painting', 'drunkenness genre painting']},
-    {nome:'mercati e botteghe', sfumatura:8, img:['market still life painting', 'market scene engraving', 'abundance still life painting', 'fruit vegetable still life']},
-    {nome:'vino e cantine', sfumatura:-2, img:['wine still life painting', 'bacchanal print engraving', 'bacchanal painting', 'drinking scene painting']},
-    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker genre painting', 'kitchen still life bread']},
-    {nome:'piatti stagionali', sfumatura:4, img:['vanitas still life rotting fruit', 'vanitas print still life', 'memento mori fruit painting', 'harvest still life painting']},
+    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food']},
+    {nome:'colazioni', sfumatura:14, img:['coffee vendor street photograph', 'breakfast still life painting', 'still life etching breakfast', 'breakfast genre painting', 'morning meal genre painting']},
+    {nome:'ricette di casa', sfumatura:-6, img:['kitchen scene genre painting', 'woman cooking stove photograph', 'domestic meal genre painting', 'cook genre painting']},
+    {nome:'dolci', sfumatura:22, img:['vanitas print engraving', 'sweets festival photograph tradition', 'vanitas still life dessert', 'sweet temptation still life painting', 'gluttony allegory painting']},
+    {nome:'osterie di quartiere', sfumatura:-14, img:['tavern documentary photograph', 'tavern scene genre painting', 'tavern scene engraving', 'feast genre painting', 'drunkenness genre painting']},
+    {nome:'mercati e botteghe', sfumatura:8, img:['market still life painting', 'spice market vendor photograph', 'market scene engraving', 'abundance still life painting', 'fruit vegetable still life']},
+    {nome:'vino e cantine', sfumatura:-2, img:['wine still life painting', 'grape harvest workers photograph', 'bacchanal print engraving', 'bacchanal painting', 'drinking scene painting']},
+    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread']},
+    {nome:'piatti stagionali', sfumatura:4, img:['vanitas still life rotting fruit', 'grape harvest basket photograph', 'vanitas print still life', 'memento mori fruit painting', 'harvest still life painting']},
   ],
   // eventi
   1: [
