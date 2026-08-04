@@ -856,15 +856,15 @@ const microCategorie = {
   ],
   // eventi
   1: [
-    {nome:'concerti', sfumatura:-22, img:['concert stage crowd', 'live music concert', 'band performing stage']},
-    {nome:'sagre', sfumatura:14, img:['village fair festival', 'country fair stalls', 'local sagra food festival']},
-    {nome:'mostre', sfumatura:-6, img:['art exhibition gallery', 'museum exhibition visitors', 'art show display']},
-    {nome:'mercatini', sfumatura:22, img:['flea market stalls', 'outdoor market vendors', 'antique market stand']},
-    {nome:'festival', sfumatura:-14, img:['festival crowd outdoor', 'summer festival celebration', 'street festival event']},
-    {nome:'presentazioni di libri', sfumatura:8, img:['author book reading', 'book presentation event', 'library reading event']},
-    {nome:'spettacoli dal vivo', sfumatura:-2, img:['live theatre performance', 'stage performance actors', 'live show audience']},
-    {nome:'feste di quartiere', sfumatura:-18, img:['street party neighborhood', 'block party celebration', 'community street festival']},
-    {nome:'rassegne cinematografiche', sfumatura:4, img:['film festival screening', 'cinema festival audience', 'outdoor movie screening']},
+    {nome:'mostre', sfumatura:-22, img:['gallery visitors viewing art painting', 'picture gallery interior painting', 'connoisseurs viewing paintings gallery', 'sculpture gallery exhibition painting'], imgPop:['art exhibition documentary photograph']},
+    {nome:'concerti', sfumatura:14, img:['musicians ensemble painting', 'concert scene engraving', 'concert orchestra painting'], imgPop:['Russell Lee fiddler photograph', 'Ben Shahn musician photograph']},
+    {nome:'festival', sfumatura:-6, img:['Bruegel peasant kermesse painting', 'peasant wedding feast painting', 'carnival festival painting historical'], imgPop:['techno festival crowd photograph']},
+    {nome:'rave', sfumatura:22, img:['bacchanal ecstatic dance painting'], imgPop:['Detroit techno rave photograph', 'rave party crowd dancing photograph']},
+    {nome:'jazz club', sfumatura:-14, img:['Gottlieb Charlie Parker photograph', 'Gottlieb Dizzy Gillespie photograph', 'William Gottlieb jazz musician photograph'], imgPop:['Gottlieb Thelonious Monk photograph']},
+    {nome:'happening', sfumatura:8, img:['author book reading', 'book presentation event', 'library reading event']},
+    {nome:'performance', sfumatura:-2, img:['whirling dervish ritual dance photograph', 'maenad relief sculpture dancing']},
+    {nome:'fiere', sfumatura:-18, img:['colportage book seller street photograph', 'Toulouse-Lautrec theatre poster print', 'Lumiere brothers cinema photograph']},
+    {nome:'sale da ballo', sfumatura:4, img:['Degas ballet dancers painting', 'Native American powwow dance photograph', 'Japanese traditional dance photograph'], imgPop:['street dance crew photograph urban']},
   ],
   // meme — categoria senza equivalente reale licenziabile (i meme moderni non sono di pubblico
   // dominio): puntiamo su vignette satiriche/caricature storiche realmente di pubblico dominio,
@@ -2102,11 +2102,29 @@ renderOrganizePanel();
 // Se la rete non è disponibile, l'API non risponde, o non ci sono risultati adatti, non succede
 // nulla: il prototipo resta identico a prima, senza mai bloccarsi o rompersi in assenza di rete.
 const realImagePromises = new Map(); // "settoreIdx|microIdx" -> Promise<{url,credit}|null>
-// Nessuna foto reale si ripete mai tra le microcategorie/macrocategorie di questa sessione: ogni
-// url restituito da una fonte viene registrato qui, e fetchPublicDomainImage scarta silenziosamente
-// un risultato già usato provando la fonte/variante successiva, invece di mostrare due volte la
-// stessa immagine in due tag diversi.
+// Nessuna foto reale si ripete MAI tra le microcategorie/macrocategorie — non solo in questa
+// sessione, ma per tutta la vita dell'app su questo device: ogni url restituito da una fonte
+// viene registrato qui, e fetchPublicDomainImage scarta silenziosamente un risultato già usato
+// provando la fonte/variante successiva, invece di mostrare due volte la stessa immagine in due
+// tag diversi. A differenza di `microVersions` (che restartSession() azzera apposta ad ogni
+// nuovo ciclo, per far sembrare la griglia "fresca"), questo elenco non si azzera mai: persiste
+// in localStorage sotto USED_IMAGES_KEY, indipendente dal ciclo di sessione/lockout, così una
+// foto già mostrata non può ripresentarsi nemmeno chiudendo e riaprendo l'app mesi dopo. Se le
+// query di una microcategoria si esauriscono contro questo elenco sempre più affollato, non si
+// ripete comunque mai: si ricade sulla scaletta FALLBACK_POP_QUERIES (sempre più eccentrica) e,
+// in ultima istanza, la tile resta sul placeholder finché un refresh (limitato dal budget
+// `credits`) non trova qualcosa di davvero nuovo.
+const USED_IMAGES_KEY = 'smarchive:usedImages:v1';
 const usedImageUrls = new Set();
+(function loadUsedImageUrls(){
+  try{
+    const raw = localStorage.getItem(USED_IMAGES_KEY);
+    if(raw) JSON.parse(raw).forEach(url => usedImageUrls.add(url));
+  } catch(err){}
+})();
+function persistUsedImageUrls(){
+  try{ localStorage.setItem(USED_IMAGES_KEY, JSON.stringify(Array.from(usedImageUrls))); } catch(err){}
+}
 
 // Chiavi API facoltative per le fonti che le richiedono. Lasciate vuote di default: se una
 // chiave manca, quella singola fonte viene saltata senza errori (nessun'altra funzionalità ne
@@ -2451,10 +2469,12 @@ async function fetchPublicDomainImage(queryOrQueries, preferPop){
     for(const source of sources){
       try {
         const result = await source(query);
-        // Un url già usato in un'altra microcategoria/macrocategoria di questa sessione viene
-        // scartato: si prova la fonte/variante successiva invece di ripetere la stessa foto.
+        // Un url già usato in un'altra microcategoria/macrocategoria (mai, in nessuna sessione
+        // passata: vedi USED_IMAGES_KEY) viene scartato: si prova la fonte/variante successiva
+        // invece di ripetere la stessa foto.
         if(result && !usedImageUrls.has(result.url)){
           usedImageUrls.add(result.url);
+          persistUsedImageUrls();
           return result;
         }
       } catch(err) {
@@ -2473,6 +2493,7 @@ async function fetchPublicDomainImage(queryOrQueries, preferPop){
           const result = await source(fallbackQuery);
           if(result && !usedImageUrls.has(result.url)){
             usedImageUrls.add(result.url);
+            persistUsedImageUrls();
             return result;
           }
         } catch(err) {
