@@ -840,15 +840,15 @@ const microCategorie = {
   // fuori tema pur "funzionando" tecnicamente (una mappa, un bollettino, un progetto
   // fotografico generico — vedi commit precedente).
   0: [
-    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food']},
+    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food'], imgPop:['child eating ice cream street photograph', 'street vendor laughing photograph']},
     {nome:'colazioni', sfumatura:14, img:['coffee vendor street photograph', 'breakfast still life painting', 'still life etching breakfast', 'breakfast genre painting', 'morning meal genre painting']},
-    {nome:'ricette di casa', sfumatura:-6, img:['kitchen scene genre painting', 'woman cooking stove photograph', 'domestic meal genre painting', 'cook genre painting']},
-    {nome:'dolci', sfumatura:22, img:['vanitas print engraving', 'sweets festival photograph tradition', 'vanitas still life dessert', 'sweet temptation still life painting', 'gluttony allegory painting']},
-    {nome:'osterie di quartiere', sfumatura:-14, img:['tavern documentary photograph', 'tavern scene genre painting', 'tavern scene engraving', 'feast genre painting', 'drunkenness genre painting']},
-    {nome:'mercati e botteghe', sfumatura:8, img:['market still life painting', 'spice market vendor photograph', 'market scene engraving', 'abundance still life painting', 'fruit vegetable still life']},
+    {nome:'ricette di casa', sfumatura:-6, img:['kitchen scene genre painting', 'woman cooking stove photograph', 'domestic meal genre painting', 'cook genre painting'], imgPop:['mother cooking pot stove photograph', 'grandmother cooking stove smiling photograph']},
+    {nome:'dolci', sfumatura:22, img:['vanitas print engraving', 'sweets festival photograph tradition', 'vanitas still life dessert', 'sweet temptation still life painting', 'gluttony allegory painting'], imgPop:['ice cream dripping hand photograph', 'child eating cake face photograph']},
+    {nome:'osterie di quartiere', sfumatura:-14, img:['tavern documentary photograph', 'tavern scene genre painting', 'tavern scene engraving', 'feast genre painting', 'drunkenness genre painting'], imgPop:['friends toasting glasses photograph', 'laughing dinner table photograph']},
+    {nome:'mercati e botteghe', sfumatura:8, img:['market still life painting', 'spice market vendor photograph', 'market scene engraving', 'abundance still life painting', 'fruit vegetable still life'], imgPop:['market vendor candid smile photograph']},
     {nome:'vino e cantine', sfumatura:-2, img:['wine still life painting', 'grape harvest workers photograph', 'bacchanal print engraving', 'bacchanal painting', 'drinking scene painting']},
-    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread']},
-    {nome:'piatti stagionali', sfumatura:4, img:['vanitas still life rotting fruit', 'grape harvest basket photograph', 'vanitas print still life', 'memento mori fruit painting', 'harvest still life painting']},
+    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread'], imgPop:['kneading dough hands photograph', 'flour dusted hands kneading dough photograph']},
+    {nome:'piatti stagionali', sfumatura:4, img:['vanitas still life rotting fruit', 'grape harvest basket photograph', 'vanitas print still life', 'memento mori fruit painting', 'harvest still life painting'], imgPop:['picking apples orchard photograph', 'harvest basket vegetables photograph']},
   ],
   // eventi
   1: [
@@ -949,9 +949,16 @@ function microColore(settoreIdx, microIdx){
 // per il criterio con cui le riscriviamo macrocategoria per macrocategoria. In coda aggiungiamo
 // comunque il nome italiano e il termine ampio del settore, così una ricerca troppo di nicchia
 // non lascia mai il tile senza foto.
-function microQueryVariants(settoreIdx, microIdx){
+// `preferPop`: le 2-3 tile "pop" della griglia (vedi isPopSlot/CULTURA_SHARE) usano `imgPop`
+// quando la microcategoria ne ha uno — un registro apposta diverso da `img` (non le stesse frasi
+// cercate su fonti più eccentriche, ma frasi pensate per uno scatto spontaneo/irriverente/poetico
+// che spezzi il ritmo curato delle altre 6-7) — richiesta esplicita dell'utente. Se `imgPop` non
+// esiste ancora per quella microcategoria, si ricade su `img` come sempre, nessuna tile ne resta
+// priva solo perché non ancora scritto.
+function microQueryVariants(settoreIdx, microIdx, preferPop){
   const m = microCategorie[settoreIdx][microIdx];
-  const specifiche = Array.isArray(m.img) ? m.img : [m.img];
+  const fonte = (preferPop && m.imgPop) ? m.imgPop : m.img;
+  const specifiche = Array.isArray(fonte) ? fonte : [fonte];
   return [...specifiche, m.nome, SETTORE_EN[settoreIdx]];
 }
 let cols = 4;
@@ -1840,7 +1847,7 @@ function renderGridPages(idx, scrollToLast = true){
         // Sulla genesi (pagina 0) si passa dalla cache (resolveRealImage); su una pagina nata da
         // un refresh si vuole invece sempre un risultato nuovo (fetchFreshRealImage).
         const fetchPromise = p === 0
-          ? resolveRealImage(idx, microIdx, microQueryVariants(idx, microIdx))
+          ? resolveRealImage(idx, microIdx, microQueryVariants(idx, microIdx, isPopSlot(idx, microIdx, 0)))
           : fetchFreshRealImage(idx, microIdx, p);
         // Bug corretto: prima, se nel frattempo si cambiava scheda/tag prima che il risultato
         // arrivasse, la riga "!document.body.contains(el)" scartava il risultato per intero,
@@ -2486,7 +2493,8 @@ function resolveRealImage(sIdx, mIdx, query){
 // usedImageUrls) così il nuovo risultato non è mai una foto già vista altrove nella sessione.
 // page è l'indice della pagina/versione richiesta (coincide con quello usato da isPopSlot).
 function fetchFreshRealImage(sIdx, mIdx, page){
-  return fetchPublicDomainImage(microQueryVariants(sIdx, mIdx), isPopSlot(sIdx, mIdx, page)).catch(() => null);
+  const pop = isPopSlot(sIdx, mIdx, page);
+  return fetchPublicDomainImage(microQueryVariants(sIdx, mIdx, pop), pop).catch(() => null);
 }
 function applyRealImageToTile(el, result){
   if(!document.body.contains(el)) return; // la griglia potrebbe essere stata ridisegnata nel frattempo
@@ -2631,7 +2639,7 @@ function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
       const token = key + '#' + vIdx;
       window._fsCurrentToken = token;
       const fetchPromise = vIdx === 0
-        ? resolveRealImage(settoreIdx, microIdx, microQueryVariants(settoreIdx, microIdx))
+        ? resolveRealImage(settoreIdx, microIdx, microQueryVariants(settoreIdx, microIdx, isPopSlot(settoreIdx, microIdx, 0)))
         : fetchFreshRealImage(settoreIdx, microIdx, vIdx);
       fetchPromise.then(result => {
         if(!result) return;
