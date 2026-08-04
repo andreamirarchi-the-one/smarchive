@@ -827,28 +827,32 @@ const EMOJI_KEYWORDS = {
 // luminosità rispetto al colore base del settore, usata sia per il pallino del chip sia per
 // l'ordinamento "per somiglianza cromatica" nella vista organizzata.
 const microCategorie = {
-  // cibo — direzione rivista col brief del 2026-08-04: non più foto documentarie generiche,
-  // ma tre registri intrecciati sul tema di consumare/assorbire/rifiutare il cibo — opere
-  // d'arte (dipinti di genere, nature morte, vanitas: il genere che da secoli lavora proprio
-  // su eccesso/decadimento/rifiuto), stampe/incisioni sullo stesso registro, e fotografia
-  // documentaria di forte caratura sul folklore del cibo (lavoro nei campi, venditori
-  // ambulanti, condizioni di vita — mai scatti-cartolina). Ogni `img` mette prima le frasi
-  // già verificate dal vivo (danno davvero un risultato pertinente sulle fonti reali), poi
-  // ricade sulle varianti più generiche come rete di sicurezza. Le query di fotografia
-  // documentaria sulle fonti "pop" (Flickr/Openverse/Internet Archive) sono meno precise di
-  // quelle sui musei: verificate una per una, scartate quelle che restituivano risultati
-  // fuori tema pur "funzionando" tecnicamente (una mappa, un bollettino, un progetto
-  // fotografico generico — vedi commit precedente).
+  // cibo — direzione rivista col brief del 2026-08-04, poi affinata microcategoria per
+  // microcategoria (nomi scelti dall'utente, non più i generici iniziali). Criteri per `img`
+  // (registro "colto", curato): pittura di genere/stampe/fotografia documentaria con figure e
+  // azione reale — la natura morta statica è l'eccezione, non il default (unica deroga
+  // esplicita: gioielli/oreficeria di valore storico per "9 stelle Michelin", dove l'oggetto
+  // stesso è il soggetto). Criteri per `imgPop` (1-2 tile per griglia, via isPopSlot): deve
+  // essere di autore riconoscibile e attribuito — si usano soprattutto foto FSA/Library of
+  // Congress (Russell Lee, Marion Post Wolcott, Jack Delano, Lewis Hine: di pubblico dominio,
+  // autentiche, mai anonime) invece di scatti Flickr generici. Quando non si trova un risultato
+  // affidabile e attribuito per un tema di nicchia, la microcategoria resta senza `imgPop`
+  // piuttosto che ripiegare su una foto anonima o fuori tema (vedi colazioni, vino e cantine,
+  // spadara, 9 stelle Michelin, surgelato). Ogni `img`/`imgPop` mette prima le frasi già
+  // verificate dal vivo (danno un risultato pertinente sulle fonti reali), poi ricade su
+  // varianti più generiche come rete di sicurezza — verificate una per una con screenshot,
+  // scartando risultati fuori tema pur "funzionanti" tecnicamente (ricerche full-text su
+  // Wikimedia spesso premiano scansioni di libri/documenti su frasi generiche di 2-3 parole).
   0: [
-    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food'], imgPop:['child eating ice cream street photograph', 'street vendor laughing photograph']},
-    {nome:'colazioni', sfumatura:14, img:['coffee vendor street photograph', 'breakfast still life painting', 'still life etching breakfast', 'breakfast genre painting', 'morning meal genre painting']},
-    {nome:'ricette di casa', sfumatura:-6, img:['kitchen scene genre painting', 'woman cooking stove photograph', 'domestic meal genre painting', 'cook genre painting'], imgPop:['mother cooking pot stove photograph', 'grandmother cooking stove smiling photograph']},
-    {nome:'dolci', sfumatura:22, img:['vanitas print engraving', 'sweets festival photograph tradition', 'vanitas still life dessert', 'sweet temptation still life painting', 'gluttony allegory painting'], imgPop:['ice cream dripping hand photograph', 'child eating cake face photograph']},
-    {nome:'osterie di quartiere', sfumatura:-14, img:['tavern documentary photograph', 'tavern scene genre painting', 'tavern scene engraving', 'feast genre painting', 'drunkenness genre painting'], imgPop:['friends toasting glasses photograph', 'laughing dinner table photograph']},
-    {nome:'mercati e botteghe', sfumatura:8, img:['market still life painting', 'spice market vendor photograph', 'market scene engraving', 'abundance still life painting', 'fruit vegetable still life'], imgPop:['market vendor candid smile photograph']},
-    {nome:'vino e cantine', sfumatura:-2, img:['wine still life painting', 'grape harvest workers photograph', 'bacchanal print engraving', 'bacchanal painting', 'drinking scene painting']},
+    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food'], imgPop:['Jack Delano street vendor photograph']},
+    {nome:'bignè alla crema', sfumatura:14, img:['confectioner at work genre painting', 'brioche still life painting', 'pastry vendor print historical', 'pastry shop documentary photograph'], imgPop:['Russell Lee child eating photograph']},
+    {nome:'ricette della nonna', sfumatura:-6, img:['family meal genre painting', 'peasant kitchen genre painting', 'domestic kitchen scene engraving', 'woman cooking stove photograph'], imgPop:['Russell Lee kitchen photograph']},
+    {nome:'sulla piastra', sfumatura:22, img:['slaughterhouse interior painting', 'Rembrandt slaughtered ox', 'dead game still life painting', 'game hunting engraving'], imgPop:['Russell Lee barbecue photograph']},
+    {nome:'pescherie di quartiere', sfumatura:-14, img:['fishmonger genre painting', 'Scheveningen fisherwomen painting', 'Newhaven fishwives photograph'], imgPop:['Lewis Hine fish market photograph']},
+    {nome:'spadara', sfumatura:8, img:['whale hauling shore station photograph', 'whaling ship painting', 'Winslow Homer shark painting']},
+    {nome:'9 stelle Michelin', sfumatura:-2, img:['formal banquet genre painting', 'Renoir luncheon painting', 'Tiepolo banquet painting', 'crown jewels photograph museum', 'Fabergé imperial egg museum photograph']},
     {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread'], imgPop:['kneading dough hands photograph', 'flour dusted hands kneading dough photograph']},
-    {nome:'piatti stagionali', sfumatura:4, img:['vanitas still life rotting fruit', 'grape harvest basket photograph', 'vanitas print still life', 'memento mori fruit painting', 'harvest still life painting'], imgPop:['picking apples orchard photograph', 'harvest basket vegetables photograph']},
+    {nome:'surgelato', sfumatura:4, img:['copy after Raphael painting', 'copy after Rubens painting', 'plaster cast reproduction sculpture museum']},
   ],
   // eventi
   1: [
