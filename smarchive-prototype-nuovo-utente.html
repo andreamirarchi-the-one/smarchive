@@ -294,6 +294,19 @@
      se questi campi non arrivano, restano nascosti e non appare nessuna riga al loro posto. */
   .fs-source-link{ display:none; font-size:11px; color:#C9C6BA; text-decoration:underline; margin:0 0 4px; }
   .fs-source-excerpt{ display:none; margin:0 0 14px; font-size:11px; color:#9B988C; line-height:1.45; }
+  /* Salti: chip di associazioni laterali (vedi salti in microCategorie) e la mini-vista che si
+     apre sopra la foto quando se ne tocca uno — resta sopra .fullscreen (z-index:20) ma sotto le
+     tendine di base (z-index:30), non essendo mai aperta insieme a quelle. */
+  .salti-row{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+  .salto-chip{ display:inline-flex; align-items:center; padding:6px 12px; border-radius:20px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.22); color:#E4E1D6; font:inherit; font-size:11px; font-weight:500; cursor:pointer; }
+  .salto-chip:active{ background:rgba(255,255,255,0.2); }
+  .salto-sheet{ display:none; position:absolute; inset:0; background:#131210; z-index:22; flex-direction:column; }
+  .salto-sheet.active{ display:flex; }
+  .salto-img{ flex:1; background-size:cover; background-position:center; background-color:#1B1A16; display:flex; align-items:center; justify-content:center; }
+  .salto-loading{ color:#8A877C; font-size:12px; }
+  .salto-bottom{ background:#1B1A16; padding:16px 20px 20px; color:#fff; min-height:52px; }
+  .salto-bottom h3{ font-family:'Fraunces',serif; font-weight:500; margin:0 0 4px; font-size:15px; }
+  .salto-bottom p{ margin:0; font-size:11px; color:#9B988C; }
   .bio{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5; }
 
   .icon-sheet, .confirm-sheet, .packs-sheet, .search-sheet, .frame-sheet, .quick-sheet, .nota-sheet, .emoji-picker-sheet{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.6); z-index:30; align-items:flex-end; }
@@ -601,6 +614,11 @@
            e/o un estratto — mai un testo di riempimento inventato per compensarne l'assenza. -->
       <a class="fs-source-link" id="fs-source-link" href="#" target="_blank" rel="noopener"></a>
       <p class="fs-source-excerpt" id="fs-source-excerpt"></p>
+      <!-- Salti possibili: chip di associazioni laterali per la microcategoria corrente (vedi
+           salti in microCategorie) — tap cerca dal vivo una foto reale per quel concetto (vedi
+           openSaltoSheet), mai precaricata, mai a pagamento (nessun credito consumato). Nascosta
+           quando la microcategoria non ha ancora salti definiti. -->
+      <div class="salti-row" id="salti-row" style="display:none;"></div>
       <!-- Scarica sul device la foto reale mostrata — mai un salvataggio dentro l'app stessa,
            vedi downloadCurrentPhoto: nessuna scrittura in pages/localStorage. Visibile solo
            quando esiste davvero una foto reale risolta (mai per il placeholder picsum). -->
@@ -612,6 +630,18 @@
            originale" portavano solo a un account finto ("Marco in viaggio") mai esistito nella
            realtà — mai fabbricare un profilo per compensarne l'assenza, quindi qui non resta
            nulla al suo posto. Sotto l'immagine c'è solo la fonte reale (sopra), quando esiste. -->
+    </div>
+  </div>
+
+  <!-- Mini-vista di un salto: si apre sopra .fullscreen (che resta aperta sotto). Tap sull'overlay
+       scuro o sulla chiusura torna alla foto di partenza senza mai cambiare microcategoria — vedi
+       openSaltoSheet/closeSaltoSheet. -->
+  <div class="salto-sheet" id="salto-sheet" onclick="if(event.target===this) closeSaltoSheet();">
+    <div class="fs-top"><div class="fs-close" onclick="closeSaltoSheet()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>
+    <div class="salto-img" id="salto-img"><span class="salto-loading" id="salto-loading">Cerco una foto reale…</span></div>
+    <div class="salto-bottom">
+      <h3 id="salto-title"></h3>
+      <p id="salto-credit"></p>
     </div>
   </div>
 
@@ -843,28 +873,38 @@ const microCategorie = {
   // varianti più generiche come rete di sicurezza — verificate una per una con screenshot,
   // scartando risultati fuori tema pur "funzionanti" tecnicamente (ricerche full-text su
   // Wikimedia spesso premiano scansioni di libri/documenti su frasi generiche di 2-3 parole).
+  // `salti` (facoltativo, per ora solo cibo/eventi — vedi nota sopra microCategorie): 3-5 "salti
+  // cognitivi" per microcategoria, ciascuno {label, query}. `label` è il chip mostrato all'utente
+  // (un'associazione laterale reale, non un sinonimo: es. bignè→Warhol è un nesso di serialità
+  // industriale, non di gusto). `query` è cosa viene davvero cercata da fetchPublicDomainImage al
+  // tap — spesso diversa dal label quando il label da solo non risolverebbe a una foto pertinente
+  // (es. label "Tesori antichi" ma query 'ancient Greek vase painting', verificato dal vivo contro
+  // l'API del Met). Ogni salto è stato controllato dal vivo prima di essere scritto qui; nomi
+  // propri recenti/non di pubblico dominio (Doisneau, Detroit techno, Marina Abramović) sono stati
+  // scartati o sostituiti perché non restituivano nulla di autenticamente PD — stesso criterio già
+  // applicato a `img`/`imgPop`, mai un'eccezione per i salti.
   0: [
-    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food'], imgPop:['Jack Delano street vendor photograph']},
-    {nome:'bignè alla crema', sfumatura:14, img:['confectioner at work genre painting', 'brioche still life painting', 'pastry vendor print historical', 'pastry shop documentary photograph'], imgPop:['Russell Lee child eating photograph']},
-    {nome:'ricette della nonna', sfumatura:-6, img:['family meal genre painting', 'peasant kitchen genre painting', 'domestic kitchen scene engraving', 'woman cooking stove photograph'], imgPop:['Russell Lee kitchen photograph']},
-    {nome:'sulla piastra', sfumatura:22, img:['slaughterhouse interior painting', 'Rembrandt slaughtered ox', 'dead game still life painting', 'game hunting engraving'], imgPop:['Russell Lee barbecue photograph']},
-    {nome:'pescherie di quartiere', sfumatura:-14, img:['fishmonger genre painting', 'Scheveningen fisherwomen painting', 'Newhaven fishwives photograph'], imgPop:['Lewis Hine fish market photograph']},
-    {nome:'spadara', sfumatura:8, img:['whale hauling shore station photograph', 'whaling ship painting', 'Winslow Homer shark painting']},
-    {nome:'9 stelle Michelin', sfumatura:-2, img:['formal banquet genre painting', 'Renoir luncheon painting', 'Tiepolo banquet painting', 'crown jewels photograph museum', 'Fabergé imperial egg museum photograph']},
-    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread'], imgPop:['kneading dough hands photograph', 'flour dusted hands kneading dough photograph']},
-    {nome:'surgelato', sfumatura:4, img:['copy after Raphael painting', 'copy after Rubens painting', 'plaster cast reproduction sculpture museum']},
+    {nome:'street food', sfumatura:-22, img:['street vendor genre painting', 'street food vendor documentary photograph', 'street vendor engraving', 'market scene genre art', 'street food'], imgPop:['Jack Delano street vendor photograph'], salti:[{label:'Eugène Atget', query:['Eugène Atget street photograph', 'Atget Paris street photograph']}, {label:'Migrazione', query:['migrant workers documentary photograph', 'Dorothea Lange migrant photograph']}, {label:'Notte metropolitana', query:['city night street photograph vintage', 'urban night scene photograph']}, {label:'Organetto', query:['organ grinder street photograph', 'organ grinder with monkey photograph']}]},
+    {nome:'bignè alla crema', sfumatura:14, img:['confectioner at work genre painting', 'brioche still life painting', 'pastry vendor print historical', 'pastry shop documentary photograph'], imgPop:['Russell Lee child eating photograph'], salti:[{label:'Barocco', query:['baroque still life painting', 'baroque ornament sculpture photograph']}, {label:'Warhol', query:['Andy Warhol photograph']}, {label:'Pasticceria francese', query:['French pastry shop genre painting', 'confectioner pastry historical photograph']}, {label:'Feste di compleanno', query:['birthday party vintage photograph', 'birthday celebration documentary photograph']}, {label:'Natura morta fiamminga', query:['Flemish still life painting']}]},
+    {nome:'ricette della nonna', sfumatura:-6, img:['family meal genre painting', 'peasant kitchen genre painting', 'domestic kitchen scene engraving', 'woman cooking stove photograph'], imgPop:['Russell Lee kitchen photograph'], salti:[{label:'Memoria', query:['old family portrait photograph vintage', 'family photograph album vintage']}, {label:'Cucina contadina', query:['peasant kitchen genre painting']}, {label:'Fiabe di Perrault', query:['Gustave Doré fairy tale illustration', 'Perrault fairy tale illustration engraving']}, {label:'Domenica', query:['family dinner table photograph vintage', 'Sunday family gathering photograph vintage']}, {label:'Trasmissione orale', query:['grandmother storytelling photograph', 'elder storyteller documentary photograph']}]},
+    {nome:'sulla piastra', sfumatura:22, img:['slaughterhouse interior painting', 'Rembrandt slaughtered ox', 'dead game still life painting', 'game hunting engraving'], imgPop:['Russell Lee barbecue photograph'], salti:[{label:'Caravaggio', query:['Caravaggio painting']}, {label:'Vanitas', query:['vanitas still life painting']}, {label:'Caccia', query:['hunting scene genre painting']}, {label:'Rembrandt', query:['Rembrandt painting']}, {label:'Rito del fuoco', query:['bonfire ritual photograph', 'fire ceremony documentary photograph']}]},
+    {nome:'pescherie di quartiere', sfumatura:-14, img:['fishmonger genre painting', 'Scheveningen fisherwomen painting', 'Newhaven fishwives photograph'], imgPop:['Lewis Hine fish market photograph'], salti:[{label:'Impressionismo', query:['impressionist harbor painting', 'impressionist fishing painting']}, {label:'Alba', query:['sunrise seascape painting', 'dawn harbor photograph']}, {label:'Vita costiera', query:['coastal fishing village photograph documentary']}, {label:'Mercato', query:['market scene genre painting']}]},
+    {nome:'spadara', sfumatura:8, img:['whale hauling shore station photograph', 'whaling ship painting', 'Winslow Homer shark painting'], salti:[{label:'Moby Dick', query:['whaling ship engraving', 'whale hunt illustration historical']}, {label:'Melville', query:['Herman Melville portrait photograph']}, {label:'Mare aperto', query:['open sea seascape painting']}, {label:'Ossessione', query:['stormy sea painting dramatic', 'shipwreck painting']}, {label:'Mito della caccia', query:['mythological hunt painting', 'hunting myth engraving historical']}]},
+    {nome:'9 stelle Michelin', sfumatura:-2, img:['formal banquet genre painting', 'Renoir luncheon painting', 'Tiepolo banquet painting', 'crown jewels photograph museum', 'Fabergé imperial egg museum photograph'], salti:[{label:'Versailles', query:['Versailles palace photograph', 'Versailles hall of mirrors photograph']}, {label:'Fabergé', query:['Fabergé egg photograph museum']}, {label:'Eccesso', query:['opulent banquet painting', 'lavish feast painting historical']}, {label:'Teatro del lusso', query:['royal court ceremony painting', 'palace ballroom photograph historical']}]},
+    {nome:'panificazione', sfumatura:-18, img:['bread still life painting', 'baker kneading bread photograph', 'baker genre painting', 'kitchen still life bread'], imgPop:['kneading dough hands photograph', 'flour dusted hands kneading dough photograph'], salti:[{label:'Rito quotidiano', query:['baker kneading bread photograph', 'baker genre painting']}, {label:'Van Gogh', query:['Van Gogh potato eaters painting', 'Van Gogh painting']}, {label:'Lievito madre', query:['sourdough bread photograph vintage', 'bread dough photograph']}, {label:'Fatica contadina', query:['peasant labor genre painting', 'farm labor documentary photograph']}]},
+    {nome:'surgelato', sfumatura:4, img:['copy after Raphael painting', 'copy after Rubens painting', 'plaster cast reproduction sculpture museum'], salti:[{label:'Serialità', query:['factory assembly line photograph', 'mass production photograph documentary']}, {label:'Warhol', query:['Andy Warhol photograph']}, {label:'Simulacro', query:['plaster cast reproduction sculpture museum']}, {label:'Museo', query:['museum interior photograph vintage', 'museum gallery photograph historical']}]},
   ],
   // eventi
   1: [
-    {nome:'mostre', sfumatura:-22, img:['gallery visitors viewing art painting', 'picture gallery interior painting', 'connoisseurs viewing paintings gallery', 'sculpture gallery exhibition painting'], imgPop:['art exhibition documentary photograph']},
-    {nome:'concerti', sfumatura:14, img:['musicians ensemble painting', 'concert scene engraving', 'concert orchestra painting'], imgPop:['Russell Lee fiddler photograph', 'Ben Shahn musician photograph']},
-    {nome:'festival', sfumatura:-6, img:['Bruegel peasant kermesse painting', 'peasant wedding feast painting', 'carnival festival painting historical'], imgPop:['techno festival crowd photograph']},
-    {nome:'rave', sfumatura:22, img:['bacchanal ecstatic dance painting'], imgPop:['Detroit techno rave photograph', 'rave party crowd dancing photograph']},
-    {nome:'jazz club', sfumatura:-14, img:['Gottlieb Charlie Parker photograph', 'Gottlieb Dizzy Gillespie photograph', 'William Gottlieb jazz musician photograph'], imgPop:['Gottlieb Thelonious Monk photograph']},
-    {nome:'happening', sfumatura:8, img:['March on Washington 1963 photograph', 'Selma march photograph'], imgPop:['Woodstock festival photograph 1969']},
-    {nome:'performance', sfumatura:-2, img:['whirling dervish ritual dance photograph', 'maenad relief sculpture dancing']},
-    {nome:'fiere', sfumatura:-18, img:['colportage book seller street photograph', 'Toulouse-Lautrec theatre poster print', 'Lumiere brothers cinema photograph']},
-    {nome:'sale da ballo', sfumatura:4, img:['Degas ballet dancers painting', 'Native American powwow dance photograph', 'Japanese traditional dance photograph'], imgPop:['street dance crew photograph urban']},
+    {nome:'mostre', sfumatura:-22, img:['gallery visitors viewing art painting', 'picture gallery interior painting', 'connoisseurs viewing paintings gallery', 'sculpture gallery exhibition painting'], imgPop:['art exhibition documentary photograph'], salti:[{label:'Arte rupestre', query:['prehistoric cave painting photograph']}, {label:'Tesori antichi / pinacoteca greca', query:['ancient Greek vase painting']}, {label:'Reliquiari e tesori delle cattedrali', query:['reliquary cathedral treasury photograph']}, {label:'Wunderkammer', query:['Wunderkammer cabinet of curiosities painting', 'cabinet of curiosities engraving']}, {label:'Nascita del museo pubblico — Louvre 1793', query:['Grande Galerie Louvre painting']}, {label:'Ottocento', query:['Paris Salon exhibition painting', 'world exposition historical photograph']}, {label:"'900", query:['Armory Show 1913 exhibition photograph', 'modern art exhibition photograph early 20th century']}]},
+    {nome:'concerti', sfumatura:14, img:['musicians ensemble painting', 'concert scene engraving', 'concert orchestra painting'], imgPop:['Russell Lee fiddler photograph', 'Ben Shahn musician photograph'], salti:[{label:'Romanticismo', query:['romantic era orchestra painting', 'romantic composer portrait painting']}, {label:'Rito collettivo', query:['religious procession painting']}, {label:'Applauso', query:['theatre audience photograph vintage', 'concert hall audience photograph historical']}, {label:"Direttore d'orchestra", query:['orchestra conductor photograph vintage']}]},
+    {nome:'festival', sfumatura:-6, img:['Bruegel peasant kermesse painting', 'peasant wedding feast painting', 'carnival festival painting historical'], imgPop:['techno festival crowd photograph'], salti:[{label:'Bruegel', query:['Bruegel peasant festival painting']}, {label:'Carnevale', query:['carnival festival painting historical']}, {label:'Sospensione delle regole', query:['masquerade ball painting', 'carnival mask photograph vintage']}, {label:'Eccesso controllato', query:['bacchanal feast painting']}]},
+    {nome:'rave', sfumatura:22, img:['bacchanal ecstatic dance painting'], imgPop:['Detroit techno rave photograph', 'rave party crowd dancing photograph'], salti:[{label:'Dioniso', query:['Dionysus bacchanal painting', 'Dionysian ecstatic dance painting']}, {label:'Trance collettiva', query:['ecstatic ritual dance photograph', 'trance ritual dance historical photograph']}, {label:'Baccanale', query:['bacchanal painting']}, {label:'Notte infinita', query:['nocturnal celebration painting', 'night sky long exposure photograph vintage']}]},
+    {nome:'jazz club', sfumatura:-14, img:['Gottlieb Charlie Parker photograph', 'Gottlieb Dizzy Gillespie photograph', 'William Gottlieb jazz musician photograph'], imgPop:['Gottlieb Thelonious Monk photograph'], salti:[{label:'Harlem', query:['Harlem Renaissance photograph documentary']}, {label:'Bebop', query:['jazz musician photograph vintage', 'bebop jazz musician photograph']}, {label:'Espressionismo astratto', query:['abstract expressionist painting', 'action painting studio photograph']}, {label:'Improvvisazione', query:['jazz musicians improvisation photograph vintage']}]},
+    {nome:'happening', sfumatura:8, img:['March on Washington 1963 photograph', 'Selma march photograph'], imgPop:['Woodstock festival photograph 1969'], salti:[{label:'Woodstock', query:['Woodstock festival photograph 1969']}, {label:'Diritti civili', query:['civil rights march photograph documentary']}, {label:'Piazza', query:['public square crowd photograph historical']}, {label:'Utopia', query:['Shaker community photograph']}]},
+    {nome:'performance', sfumatura:-2, img:['whirling dervish ritual dance photograph', 'maenad relief sculpture dancing'], salti:[{label:'Rito', query:['ritual ceremony photograph documentary']}, {label:'Futurismo', query:['Italian Futurism painting', 'Futurist performance photograph historical']}, {label:'Trance', query:['ecstatic ritual dance photograph']}, {label:'Corpo come linguaggio', query:['expressive dance photograph historical', 'dance movement photograph vintage']}]},
+    {nome:'fiere', sfumatura:-18, img:['colportage book seller street photograph', 'Toulouse-Lautrec theatre poster print', 'Lumiere brothers cinema photograph'], salti:[{label:'Belle Époque', query:['Belle Époque photograph Paris', 'Belle Époque fair photograph']}, {label:'Lumière', query:['Lumiere brothers cinema photograph']}, {label:'Meraviglia popolare', query:['fairground attraction photograph vintage', 'circus sideshow photograph historical']}, {label:'Baraccone', query:['carnival sideshow photograph vintage', 'traveling fair stall photograph historical']}]},
+    {nome:'sale da ballo', sfumatura:4, img:['Degas ballet dancers painting', 'Native American powwow dance photograph', 'Japanese traditional dance photograph'], imgPop:['street dance crew photograph urban'], salti:[{label:'Degas', query:['Degas ballet dancers painting']}, {label:'Corteggiamento', query:['courtship dance genre painting', 'ballroom courtship painting']}, {label:'Swing', query:['swing dance photograph vintage', 'dance hall swing photograph 1940s']}, {label:'Sabato sera', query:['dance hall Saturday night photograph vintage']}]},
   ],
   // meme — categoria senza equivalente reale licenziabile (i meme moderni non sono di pubblico
   // dominio): puntiamo su vignette satiriche/caricature storiche realmente di pubblico dominio,
@@ -2631,6 +2671,7 @@ function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
   document.getElementById('fs-source-link').textContent = '';
   document.getElementById('fs-source-excerpt').style.display = 'none';
   document.getElementById('fs-source-excerpt').textContent = '';
+  renderSaltiRow(micro);
   window._fsCurrentResult = null;
   const downloadBtn0 = document.getElementById('fs-download-btn');
   if(downloadBtn0) downloadBtn0.style.display = 'none';
@@ -2703,7 +2744,57 @@ function refreshWholeGrid(){
 }
 function closeFullscreen(){
   document.getElementById('fullscreen').classList.remove('active');
+  closeSaltoSheet();
   if(window._resetFullscreenZoom) window._resetFullscreenZoom();
+}
+// Salti: chip di associazioni laterali per la microcategoria corrente (vedi salti in
+// microCategorie, facoltativo — per ora solo cibo/eventi). Puramente testuali finché non si
+// tocca un chip: solo allora si cerca dal vivo una foto reale per quel concetto, mai precaricata
+// insieme alla griglia. I salti si tengono in window._currentSalti (per indice, non per valore)
+// così l'onclick del chip resta un semplice indice invece di dover serializzare query/label
+// nell'attributo HTML.
+function renderSaltiRow(micro){
+  const row = document.getElementById('salti-row');
+  window._currentSalti = (micro && micro.salti) || [];
+  if(!window._currentSalti.length){ row.style.display = 'none'; row.innerHTML = ''; return; }
+  row.innerHTML = window._currentSalti.map((s, i) => `<div class="salto-chip" onclick="openSaltoSheet(${i})">${s.label}</div>`).join('');
+  row.style.display = 'flex';
+}
+// Apre la mini-vista di un salto sopra la foto corrente (la fullscreen di partenza resta aperta
+// sotto, vedi .salto-sheet). Cerca dal vivo — mai precaricata — una foto reale per il concetto
+// scelto con la stessa pipeline di img/imgPop (fetchPublicDomainImage, dedup automatico contro
+// usedImageUrls, nessuna gestione manuale qui). Gratuito e illimitato: un salto non consuma mai
+// un refresh, a differenza di refreshWholeGrid. preferPop=true perché un salto è per natura più
+// vicino a un nome/concetto/riferimento culturale isolato che a una ricerca museale sistematica,
+// quindi conviene includere anche Flickr Commons/Openverse/Internet Archive/LoC.
+function openSaltoSheet(i){
+  const salto = window._currentSalti && window._currentSalti[i];
+  if(!salto) return;
+  document.getElementById('salto-title').textContent = salto.label;
+  document.getElementById('salto-credit').textContent = '';
+  document.getElementById('salto-img').style.backgroundImage = 'none';
+  const loading = document.getElementById('salto-loading');
+  loading.textContent = 'Cerco una foto reale…';
+  loading.style.display = 'flex';
+  document.getElementById('salto-sheet').classList.add('active');
+  const token = 'salto-' + i + '-' + Date.now();
+  window._saltoCurrentToken = token;
+  fetchPublicDomainImage(salto.query, true).then(result => {
+    // Se nel frattempo si è chiuso il salto o se ne è aperto un altro, questo risultato in
+    // ritardo non deve più toccare la vista (stesso principio del token già usato altrove).
+    if(window._saltoCurrentToken !== token) return;
+    if(!result){
+      loading.textContent = 'Nessuna foto reale trovata per questo salto, per ora.';
+      return;
+    }
+    loading.style.display = 'none';
+    document.getElementById('salto-img').style.backgroundImage = `url(${result.url})`;
+    document.getElementById('salto-credit').textContent = 'Foto reale, pubblico dominio — ' + result.credit;
+  });
+}
+function closeSaltoSheet(){
+  document.getElementById('salto-sheet').classList.remove('active');
+  window._saltoCurrentToken = null;
 }
 // Zoom dell'immagine in fullscreen: doppio tap per alternare 1x/2.4x, pinch a due dita per uno
 // zoom continuo, trascinamento per spostarsi quando si è ingranditi. Stesso principio delle
