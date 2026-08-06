@@ -1030,10 +1030,18 @@ function lastWidgetHTML(){
   if(!lastDiscovery){
     return `<div class="tile widget-tile" id="last-widget-tile"><div class="wt-icon">✦</div><div class="wt-text"><span class="wt-label">Ultima scoperta</span><span class="wt-sub">Ancora nessuna</span></div></div>`;
   }
-  const { seed, idx } = lastDiscovery;
+  const { seed, idx, microIdx, vIdx } = lastDiscovery;
   const s = settori[idx];
   const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
-  return `<div class="tile widget-tile" id="last-widget-tile" onclick="openFullscreen('${seed}', settori[${idx}])"><div class="wt-icon" style="background-image:url(https://picsum.photos/seed/${seed}/100/100);"></div><div class="wt-text"><span class="wt-label">Ultima scoperta</span><span class="wt-sub">${nome}</span></div></div>`;
+  // Mai il placeholder picsum qui: o si mostra la foto reale già risolta (quasi sempre il caso,
+  // essendo l'ultimo spunto aperto), o l'icona resta senza sfondo finché non lo è.
+  let bg = '';
+  if(microIdx !== undefined && microIdx !== null){
+    const versions = microVersions.get(idx + '|' + microIdx);
+    const entry = versions && versions[vIdx];
+    if(entry && entry.result) bg = ` style="background-image:url(${entry.result.url});"`;
+  }
+  return `<div class="tile widget-tile" id="last-widget-tile" onclick="openFullscreen('${seed}', settori[${idx}])"><div class="wt-icon"${bg}></div><div class="wt-text"><span class="wt-label">Ultima scoperta</span><span class="wt-sub">${nome}</span></div></div>`;
 }
 function refreshWidgetTiles(){
   const ct = document.getElementById('credits-widget-tile');
@@ -1878,7 +1886,6 @@ function renderGridPages(idx, scrollToLast = true){
       const entry = versions[p];
       const el = document.createElement('div');
       el.className = 'photo';
-      el.style.backgroundImage = `url(https://picsum.photos/seed/${entry.seed}/300/300)`;
       el.onclick = () => openFullscreen(entry.seed, s, microIdx, p);
       gridEl.appendChild(el);
       if(entry.result){
@@ -2133,14 +2140,12 @@ function renderOrganizePanel(){
 }
 renderOrganizePanel();
 
-// --- Qualità delle immagini: sostituzione live dei placeholder con foto reali di pubblico
-// dominio (diritti decaduti), quando possibile ---
-// Ogni placeholder picsum.photos è mostrato subito (la griglia non aspetta mai la rete). In
-// parallelo si tenta, per ogni microcategoria, una ricerca su Wikimedia Commons filtrata sulla
-// licenza — solo risultati genuinamente di pubblico dominio, mai stock generico — e se va a
-// buon fine si sostituisce silenziosamente l'immagine con un piccolo badge di provenienza.
-// Se la rete non è disponibile, l'API non risponde, o non ci sono risultati adatti, non succede
-// nulla: il prototipo resta identico a prima, senza mai bloccarsi o rompersi in assenza di rete.
+// --- Qualità delle immagini: niente più placeholder picsum.photos ad anticipare la foto reale
+// (rimosso su richiesta esplicita) — la tile/lo schermo restano senza sfondo finché la ricerca
+// su Wikimedia Commons (o le altre fonti, vedi fetchPublicDomainImage) non trova un risultato
+// genuinamente di pubblico dominio, mai stock generico, e solo allora appare, con un piccolo
+// badge di provenienza. Se la rete non è disponibile, l'API non risponde, o non ci sono
+// risultati adatti, la tile resta semplicemente vuota — mai un'immagine di riempimento a caso. ---
 const realImagePromises = new Map(); // "settoreIdx|microIdx" -> Promise<{url,credit}|null>
 // Nessuna foto reale si ripete MAI tra le microcategorie/macrocategorie — non solo in questa
 // sessione, ma per tutta la vita dell'app su questo device: ogni url restituito da una fonte
@@ -2656,7 +2661,7 @@ function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
     entry = versions[vIdx];
     seed = entry.seed; // la versione effettivamente mostrata decide il seed, non il chiamante
   }
-  document.getElementById('fs-img').style.backgroundImage = `url(https://picsum.photos/seed/${seed}/800/1000)`;
+  document.getElementById('fs-img').style.backgroundImage = 'none';
   // Il titolo mostra sempre anche la microcategoria specifica, non solo la macrocategoria: prima
   // diceva sempre e solo "Spunto da <macro>" identico per tutte le microcategorie di un tag,
   // quindi lo swipe laterale cambiava davvero microcategoria ma non lo si poteva percepire da
