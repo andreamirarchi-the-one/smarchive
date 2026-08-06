@@ -927,16 +927,29 @@ const microCategorie = {
   // si intrecciano naturalmente (es. pesci, uccelli, insetti hanno spesso illustrazioni storiche
   // di storia naturale nei musei, oltre alle foto). Vedi microQueryVariants per come si combina
   // con nome/settore come reti di sicurezza finali.
+  // Rifatta da zero il 2026-08-06 seguendo l'Atlante dei Salti Cognitivi (documento dell'utente,
+  // "Smarchive_Atlante_dei_Salti_Cognitivi_v1.pdf"): ogni voce qui è una delle 10 "Query" della
+  // macroarea Natura nell'Atlante (9 diventano tile, la decima — "Dio o l'Intelletto Agente" —
+  // resta fuori dalla griglia 3×3 e i suoi 10 salti sono distribuiti come salto extra tra le
+  // altre 9, contrassegnato "(extra)" nei commenti). I 10 salti per query dell'Atlante sono
+  // parole singole (es. "Movimento", "Rottura") — qui ciascuna diventa {label, query}: il label
+  // resta la parola originale, la query è la sua traduzione in qualcosa di realmente
+  // fotografabile e verificabile (stessa disciplina già applicata a Cibo/Eventi). Non tutte le
+  // ~90 query sono state verificate dal vivo una per una data la scala (a differenza di
+  // Cibo/Eventi) — sono state costruite sui pattern già rivelatisi affidabili in questa sessione
+  // (pittura di genere, oggetti museali CC0, fotografia storica LOC/NASA/USGS) evitando quelli
+  // che si sono rivelati inaffidabili (foto amatoriali moderne di soggetti generici, illustrazioni
+  // scientifiche di nicchia spesso chiuse in scansioni PDF di libri).
   3: [
-    {nome:'trekking', sfumatura:-22, img:['hikers on mountain trail', 'hiking trail nature', 'trekking path']},
-    {nome:'giardini', sfumatura:14, img:['botanical garden landscape', 'formal garden flowers', 'public garden']},
-    {nome:'mare', sfumatura:-6, img:['fish underwater', 'coral reef marine fish', 'sea fish photography', 'ocean marine life']},
-    {nome:'montagna', sfumatura:22, img:['alpine mountain peak', 'mountain range landscape', 'mountain summit vista']},
-    {nome:'boschi e sentieri', sfumatura:-14, img:['forest path trees', 'woodland trail', 'forest canopy path']},
-    {nome:'animali selvatici', sfumatura:8, img:['wild animal photography', 'wildlife safari animal', 'wild mammal nature']},
-    {nome:'fiori e botanica', sfumatura:-2, img:['flower macro photography', 'botanical illustration flower', 'wildflower close up']},
-    {nome:'albe e tramonti', sfumatura:18, img:['sunset sky landscape', 'sunrise horizon nature', 'golden hour landscape']},
-    {nome:'laghi e fiumi', sfumatura:-18, img:['mountain lake reflection', 'river landscape nature', 'lake shoreline scenery']},
+    {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'Caso', query:['storm clouds photograph dramatic']}]},
+    {nome:'bioforma', sfumatura:14, img:['Haeckel Kunstformen der Natur illustration', 'natural history illustration engraving antique'], salti:[{label:'Cellula', query:['cork cellular structure engraving Hooke']}, {label:'Mutazione', query:['natural history specimen anomaly museum photograph']}, {label:'Crescita', query:['tree rings cross section photograph']}, {label:'Simmetria', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Metamorfosi', query:['butterfly metamorphosis illustration antique']}, {label:'Parassitismo', query:['parasite illustration natural history antique']}, {label:'Simbiosi', query:['lichen photograph natural history']}, {label:'Estinzione', query:['dodo illustration historical']}, {label:'Riproduzione', query:['seed pod photograph natural history']}, {label:'Evoluzione', query:['Darwin finch illustration natural history']}, {label:'Disegno', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Origine della vita', query:['trilobite fossil photograph museum']}]},
+    {nome:'temporali e arcobaleni', sfumatura:-6, img:['rainbow photograph landscape', 'lightning storm photograph vintage'], salti:[{label:'Fenomeno', query:['halo sun photograph atmospheric']}, {label:'Scarica', query:['lightning bolt photograph vintage']}, {label:'Diluvio', query:['flood historical photograph documentary']}, {label:'Luce', query:['sunbeam photograph landscape']}, {label:'Prisma', query:['prism light spectrum photograph']}, {label:'Atmosfera', query:['clouds sky photograph NASA']}, {label:'Previsione', query:['weather station instruments photograph vintage']}, {label:'Fotografia', query:['daguerreotype camera photograph antique']}, {label:'Doppio', query:['double rainbow photograph']}, {label:'Dopo', query:['sunset after storm photograph']}, {label:'Infinito', query:['night sky stars long exposure photograph']}]},
+    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'Simmetria cosmica', query:['spiral galaxy photograph NASA']}]},
+    {nome:'collab interspecie', sfumatura:-14, img:['Dürer rhinoceros woodcut natural history', 'natural history menagerie engraving antique'], salti:[{label:'Simbiosi', query:['clownfish anemone photograph natural history']}, {label:'Impollinazione', query:['bee flower engraving natural history']}, {label:'Addomesticamento', query:['shepherd dog sheep photograph historical']}, {label:'Alleanza', query:['Dürer rhinoceros woodcut natural history']}, {label:'Pulizia', query:['egret cattle photograph natural history']}, {label:'Protezione', query:['mother animal offspring photograph natural history']}, {label:'Allarme', query:['meerkat sentinel photograph natural history']}, {label:'Cooperazione', query:['ants photograph natural history macro']}, {label:'Ospite', query:['hermit crab shell photograph natural history']}, {label:'Traduzione', query:['honeybee hive frame photograph vintage']}, {label:'Miracolo', query:['aurora borealis photograph']}]},
+    {nome:'impronte', sfumatura:8, img:['animal tracks snow photograph', 'fossil footprint photograph museum'], salti:[{label:'Traccia', query:['animal tracks mud photograph']}, {label:'Passo', query:['footprint sand photograph vintage']}, {label:'Fango', query:['animal tracks mud photograph documentary']}, {label:'Neve', query:['animal tracks snow photograph']}, {label:'Calco', query:['plaster cast reproduction sculpture museum']}, {label:'Predatore', query:['wolf tracks snow photograph']}, {label:'Preda', query:['deer tracks photograph natural history']}, {label:'Sentiero', query:['forest trail photograph vintage']}, {label:'Fossile', query:['dinosaur footprint fossil photograph museum']}, {label:'Assenza', query:['abandoned nest photograph natural history']}, {label:'Causa prima', query:['trilobite fossil photograph museum']}]},
+    {nome:'la tana', sfumatura:-2, img:['animal burrow photograph natural history', 'fox den photograph natural history'], salti:[{label:'Rifugio', query:['animal shelter cave photograph natural history']}, {label:'Scavo', query:['burrow excavation photograph natural history']}, {label:'Nido', query:['bird nest photograph natural history']}, {label:'Cunicolo', query:['rabbit warren photograph natural history']}, {label:'Buio', query:['cave interior dark photograph']}, {label:'Custodia', query:['animal guarding den photograph natural history']}, {label:'Ingresso', query:['cave entrance photograph vintage']}, {label:'Deposito', query:['squirrel food cache photograph natural history']}, {label:'Letargo', query:['bear hibernation den photograph natural history']}, {label:'Labirinto', query:['maze diagram engraving antique']}, {label:'Dubbio', query:['fog landscape photograph mysterious']}]},
+    {nome:'ricordi primordiali', sfumatura:-18, img:['Audubon birds of America engraving', 'natural history bird engraving antique'], salti:[{label:'Istinto', query:['newborn animal photograph natural history']}, {label:'Paura ancestrale', query:['startled animal photograph natural history']}, {label:'Richiamo', query:['bird calling photograph natural history']}, {label:'Migrazione', query:['Audubon birds of America engraving']}, {label:'Imprinting', query:['duckling mother photograph natural history']}, {label:'Eredità', query:['animal family photograph natural history']}, {label:'Sonno', query:['sleeping animal photograph natural history']}, {label:'Sopravvivenza', query:['animal winter survival photograph natural history']}, {label:'Branco', query:['wolf pack photograph natural history']}, {label:'Origine', query:['fossil ancestor skeleton photograph museum']}, {label:'Ordine', query:['Haeckel Kunstformen der Natur illustration']}]},
+    {nome:'ere glaciali', sfumatura:4, img:['glacier photograph historical', 'ice age landscape photograph vintage'], salti:[{label:'Ghiacciaio', query:['glacier photograph historical']}, {label:'Permafrost', query:['permafrost landscape photograph Siberia']}, {label:'Carota di ghiaccio', query:['ice core sample photograph scientific']}, {label:'Megafauna', query:['woolly mammoth skeleton museum photograph']}, {label:'Disgelo', query:['melting glacier ice photograph']}, {label:'Era', query:['woolly mammoth skeleton museum photograph']}, {label:'Estinzione di massa', query:['mammoth skeleton fossil museum photograph']}, {label:'Mammut', query:['woolly mammoth skeleton museum photograph']}, {label:'Livello del mare', query:['coastline photograph historical']}, {label:'Sepoltura nel ghiaccio', query:['frozen mammoth carcass photograph museum']}, {label:'Legge naturale', query:['spiral galaxy photograph NASA']}]},
   ],
   // cultura
   4: [
@@ -2350,9 +2363,12 @@ async function fetchFromFlickrCommons(query){
   }
   return null;
 }
-// Openverse — nessuna chiave richiesta; per costituzione del servizio aggrega solo materiale già
-// a licenza aperta o di pubblico dominio (non un motore di ricerca generico). L'API restituisce
-// già una stringa di attribuzione pronta all'uso, mai ricostruita a mano da campi sparsi.
+// Openverse — nessuna chiave richiesta. Bug corretto: nonostante il servizio aggreghi anche
+// materiale CC-BY/CC-BY-SA/CC-BY-NC (licenze aperte ma NON di pubblico dominio, alcune con
+// vincoli di attribuzione o d'uso commerciale incompatibili con questo archivio), il codice non
+// filtrava affatto sulla licenza — accettava il primo risultato qualunque fosse. Ora si accetta
+// solo se `r.license` è genuinamente equivalente a pubblico dominio (cc0, pdm, "public domain"),
+// esattamente come già fa fetchFromWikimedia.
 async function fetchFromOpenverse(query){
   const params = new URLSearchParams({ q: query, page_size: '10' });
   const res = await fetch('https://api.openverse.org/v1/images/?' + params.toString());
@@ -2361,6 +2377,8 @@ async function fetchFromOpenverse(query){
   const risultati = data.results || [];
   for(const r of risultati){
     if(!r.url) continue;
+    const licenza = (r.license || '').toLowerCase();
+    if(licenza !== 'cc0' && licenza !== 'pdm' && licenza !== 'public domain') continue; // solo diritti davvero decaduti
     const credit = r.attribution || ((r.creator || 'Openverse') + ' — ' + (r.license || 'licenza aperta').toUpperCase());
     return { url: r.url, credit, pageUrl: r.foreign_landing_url || null, excerpt: cleanExcerpt(r.title) };
   }
