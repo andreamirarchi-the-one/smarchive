@@ -309,8 +309,9 @@
   .salto-bottom p{ margin:0; font-size:11px; color:#9B988C; }
   .bio{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5; }
 
-  .icon-sheet, .confirm-sheet, .packs-sheet, .search-sheet, .frame-sheet, .quick-sheet, .nota-sheet, .emoji-picker-sheet{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.6); z-index:30; align-items:flex-end; }
-  .icon-sheet.active, .confirm-sheet.active, .packs-sheet.active, .search-sheet.active, .frame-sheet.active, .quick-sheet.active, .nota-sheet.active, .emoji-picker-sheet.active{ display:flex; }
+  .icon-sheet, .confirm-sheet, .packs-sheet, .search-sheet, .frame-sheet, .quick-sheet, .nota-sheet, .emoji-picker-sheet, .attach-sheet{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.6); z-index:30; align-items:flex-end; }
+  .icon-sheet.active, .confirm-sheet.active, .packs-sheet.active, .search-sheet.active, .frame-sheet.active, .quick-sheet.active, .nota-sheet.active, .emoji-picker-sheet.active, .attach-sheet.active{ display:flex; }
+  .attach-sheet{ z-index:31; } /* si apre sopra .search-sheet, stesso principio di .emoji-picker-sheet sopra .icon-sheet */
   .nota-sheet.dragging{ display:flex; }
 
   /* Pannelli "a tendina" stile iPhone: sostituiscono il vecchio menu a tre linee. Swipe-down
@@ -363,6 +364,13 @@
   .search-macro-heading{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); margin:16px 0 4px; cursor:pointer; }
   .search-macro-heading:first-child{ margin-top:0; }
   .search-row-indent{ padding-left:17px; }
+  .search-row-subindent{ padding-left:34px; }
+  .search-row .sr-label{ flex:1; }
+  .search-attach-btn{ flex:0 0 auto; width:24px; height:24px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-size:14px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .search-attach-btn:active{ background:var(--olive-soft); }
+  .search-filter-row{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+  .search-filter-chip{ padding:5px 11px; border-radius:20px; border:1px solid var(--line); background:var(--card); font-size:11px; color:var(--ink-soft); cursor:pointer; }
+  .search-filter-chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
   .sheet-card{ background:#F6F3EC; width:100%; border-radius:22px 22px 0 0; padding:22px 20px 20px; max-height:80%; overflow-y:auto; position:relative; }
   .sheet-handle{ position:absolute; top:9px; left:50%; transform:translateX(-50%); width:36px; height:5px; border-radius:3px; background:var(--line); }
   .close-sheet{ display:block; margin:14px auto 0; font-size:11.5px; color:var(--ink-soft); background:none; border:none; cursor:pointer; }
@@ -457,7 +465,7 @@
 
       <div class="clock-center" id="clock-center">
         <div class="clockface" id="clockface" aria-label="Pigia al centro per cercare, trascina dal bordo per spostare"><div class="hand hour" id="hand-hour"></div><div class="hand min" id="hand-min"><div class="hand-dot" id="hand-dot"></div></div></div>
-        <p>Prossima porzione tra <span id="timer-label">00:30</span></p>
+        <p id="clock-hint-label">Pigia l'orologio per navigare tra i salti</p>
       </div>
 
       <div class="grid-wrap" id="grid-wrap">
@@ -551,6 +559,7 @@
         <button class="ghost-btn" onclick="openPacksSheet('orologio')">Scarica altri pacchetti</button>
         <p class="hint">Pacchetti di quadranti di forma e misura diversa, da aggiungere ai tuoi mood.</p>
         <div class="field-row"><span class="row-label">Attesa della porzione (sec, demo)</span><input type="number" min="10" max="120" value="30" id="input-porzione" oninput="updatePorzione(this.value)"></div>
+        <div class="switch-row"><span class="row-label" style="margin:0;">Suggerimento sotto l'orologio</span><label class="switch"><input type="checkbox" id="toggle-clock-hint" checked onchange="toggleClockHint(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
 
         <p class="row-label">Posizione dell'orologio</p>
         <div class="pos-row">
@@ -665,6 +674,15 @@
       <div class="micro-chip-row" id="micro-chip-row"></div>
       <p class="micro-hint" id="micro-hint">Seleziona almeno un tag sopra per vedere le sue microcategorie.</p>
 
+      <!-- Salti (facoltativo, un livello più fine delle microcategorie): mostra solo i salti
+           delle microcategorie già selezionate sopra, mai tutti e 700 in un unico elenco piatto —
+           restano comunque tutti raggiungibili, uno scoping alla volta invece che una lista
+           enorme. Chi vuole collegare un salto specifico senza passare da qui può farlo anche
+           dalla banda di ricerca (vedi openAttachSheet), che invece li cerca tutti insieme. -->
+      <p class="row-label">Salti (facoltativo)</p>
+      <div class="micro-chip-row" id="salto-chip-row"></div>
+      <p class="micro-hint" id="salto-hint">Seleziona almeno una microcategoria sopra per vedere i suoi salti.</p>
+
       <p class="row-label">Fonte collegata</p>
       <div class="pos-row">
         <button class="pos-btn active" id="fonte-btn-profilo" onclick="setFonte('profilo')">Intero profilo</button>
@@ -733,9 +751,27 @@
     <div class="sheet-card">
       <div class="sheet-handle"></div>
       <h3 class="title-h">Cerca</h3>
-      <input type="text" id="search-input" placeholder="Cerca un tag o una raccolta…" oninput="onSearchInput(this.value)">
+      <input type="text" id="search-input" placeholder="Cerca un tag, una microcategoria, un salto…" oninput="onSearchInput(this.value)">
+      <!-- Filtro per tema (macroarea): l'unico filtro con un dato reale dietro (le altre idee
+           discusse — provenienza del link, ubicazione, colore, periodo — non hanno ancora un
+           campo dati affidabile per ogni salto, si rischierebbe di inventarlo; si aggiungono
+           quando esiste una fonte vera da cui derivarli). Tutti attivi di default. -->
+      <div class="search-filter-row" id="search-filter-row"></div>
       <div id="search-results"></div>
       <button class="close-sheet" onclick="closeSearchSheet()">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- Collega un tag/microcategoria/salto trovato in ricerca a un'icona già creata, senza dover
+       riaprire la sua scheda di modifica. Si apre sopra .search-sheet (z-index:31), che resta
+       aperta sotto — stesso principio di .emoji-picker-sheet sopra .icon-sheet. -->
+  <div class="attach-sheet" id="attach-sheet" onclick="if(event.target === this) closeAttachSheet();">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Collega a un'icona</h3>
+      <p class="hint" id="attach-hint"></p>
+      <div class="quick-action-list" id="attach-icon-list"></div>
+      <button class="close-sheet" onclick="closeAttachSheet()">Annulla</button>
     </div>
   </div>
 
@@ -1025,6 +1061,7 @@ let clockPosition = 'sopra'; // 'sopra' | 'griglia' | 'sotto' — dichiarata qui
 // prima renderPages(), perché la funzione la legge subito per decidere dove inserire il widget.
 let showCreditsWidget = false;
 let showLastWidget = false;
+let showClockHint = true; // "Pigia l'orologio per navigare tra i salti" — nascondibile da Aspetto
 let lastCreditsInfo = null; // {idx, colore} dell'ultimo tag visitato, per il widget crediti
 let lastDiscovery = null;   // {seed, idx, microIdx} dell'ultimo spunto aperto a schermo intero
 
@@ -1064,6 +1101,12 @@ function refreshWidgetTiles(){
 }
 function toggleCreditsWidget(v){ showCreditsWidget = v; renderPages(); saveLayout(); }
 function toggleLastWidget(v){ showLastWidget = v; renderPages(); saveLayout(); }
+function toggleClockHint(v){
+  showClockHint = v;
+  const el = document.getElementById('clock-hint-label');
+  if(el) el.style.display = v ? '' : 'none';
+  saveLayout();
+}
 
 function renderPages(){
   const clockEl = document.getElementById('clock-center');
@@ -1247,12 +1290,16 @@ function openIconSheet(pageIdx, iconIdx){
     tempSettori: isNew ? [] : [...pages[pageIdx][iconIdx].settori],
     // Microcategorie collegate (facoltative): elenco di chiavi "settoreIdx|microIdx".
     tempMicro: isNew ? [] : [...(pages[pageIdx][iconIdx].microcategorie || [])],
+    // Salti collegati (facoltativi, più fini delle microcategorie): elenco di chiavi
+    // "settoreIdx|microIdx|saltoIdx".
+    tempSalti: isNew ? [] : [...(pages[pageIdx][iconIdx].salti || [])],
     tempFonte: isNew ? 'profilo' : (pages[pageIdx][iconIdx].fonte || 'profilo'),
   };
   document.getElementById('icon-sheet-title').textContent = isNew ? 'Nuova raccolta' : 'Modifica icona';
   document.getElementById('icon-title-input').value = isNew ? '' : pages[pageIdx][iconIdx].titolo;
   renderTagChips();
   renderMicroChips();
+  renderSaltoChips();
   renderFonteButtons();
   refreshEmojiEntryPreview();
   document.getElementById('photo-opt-preview').style.backgroundImage = editorCtx.tempImage ? `url(${editorCtx.tempImage})` : 'none';
@@ -1373,9 +1420,10 @@ function renderTagChips(){
     chip.onclick = () => {
       if(selected){
         editorCtx.tempSettori = editorCtx.tempSettori.filter(x => x !== idx);
-        // Se si toglie un tag, le microcategorie di quel tag non hanno più senso come
-        // collegamento: si rimuovono insieme, non restano "orfane" e invisibili.
+        // Se si toglie un tag, le microcategorie (e i loro salti) di quel tag non hanno più
+        // senso come collegamento: si rimuovono insieme, non restano "orfane" e invisibili.
         editorCtx.tempMicro = editorCtx.tempMicro.filter(key => Number(key.split('|')[0]) !== idx);
+        editorCtx.tempSalti = editorCtx.tempSalti.filter(key => Number(key.split('|')[0]) !== idx);
       } else if(!atLimit){
         editorCtx.tempSettori.push(idx);
       } else {
@@ -1383,6 +1431,7 @@ function renderTagChips(){
       }
       renderTagChips();
       renderMicroChips();
+      renderSaltoChips();
       renderIconLivePreview(); // il colore di default segue il primo tag scelto
     };
     row.appendChild(chip);
@@ -1412,8 +1461,53 @@ function renderMicroChips(){
       chip.textContent = m.nome;
       chip.onclick = () => {
         const i = editorCtx.tempMicro.indexOf(key);
-        if(i === -1) editorCtx.tempMicro.push(key); else editorCtx.tempMicro.splice(i, 1);
+        if(i === -1) editorCtx.tempMicro.push(key); else {
+          editorCtx.tempMicro.splice(i, 1);
+          // Togliendo una microcategoria, anche i suoi salti collegati smettono di avere senso.
+          editorCtx.tempSalti = editorCtx.tempSalti.filter(k => k.split('|')[0] + '|' + k.split('|')[1] !== key);
+        }
         renderMicroChips();
+        renderSaltoChips();
+      };
+      row.appendChild(chip);
+    });
+  });
+}
+// Salti delle microcategorie già selezionate sopra (tempMicro) — mai un elenco piatto di tutti
+// e 700 insieme: si vedono solo quelli pertinenti alla selezione già fatta, restando comunque
+// tutti raggiungibili scegliendo più microcategorie. Per cercare/collegare un salto senza prima
+// passare dalle microcategorie, vedi la banda di ricerca (openAttachSheet).
+function renderSaltoChips(){
+  const row = document.getElementById('salto-chip-row');
+  const hint = document.getElementById('salto-hint');
+  if(!row || !hint) return;
+  row.innerHTML = '';
+  const conSalti = editorCtx.tempMicro.filter(key => {
+    const [sIdx, mIdx] = key.split('|').map(Number);
+    return microCategorie[sIdx][mIdx].salti && microCategorie[sIdx][mIdx].salti.length;
+  });
+  if(conSalti.length === 0){
+    hint.style.display = 'block';
+    hint.textContent = editorCtx.tempMicro.length === 0
+      ? 'Seleziona almeno una microcategoria sopra per vedere i suoi salti.'
+      : 'Nessuna delle microcategorie scelte ha ancora dei salti.';
+    return;
+  }
+  hint.style.display = 'none';
+  conSalti.forEach(mKey => {
+    const [sIdx, mIdx] = mKey.split('|').map(Number);
+    const m = microCategorie[sIdx][mIdx];
+    m.salti.forEach((salto, saltoIdx) => {
+      const key = sIdx + '|' + mIdx + '|' + saltoIdx;
+      const chip = document.createElement('span');
+      chip.className = 'micro-chip-toggle' + (editorCtx.tempSalti.includes(key) ? ' selected' : '');
+      chip.style.background = microColore(sIdx, mIdx);
+      chip.textContent = salto.label;
+      chip.title = m.nome; // da quale microcategoria arriva, visibile al passaggio del mouse
+      chip.onclick = () => {
+        const i = editorCtx.tempSalti.indexOf(key);
+        if(i === -1) editorCtx.tempSalti.push(key); else editorCtx.tempSalti.splice(i, 1);
+        renderSaltoChips();
       };
       row.appendChild(chip);
     });
@@ -1440,11 +1534,11 @@ function saveIconSheet(){
     return;
   }
   const titolo = document.getElementById('icon-title-input').value.trim() || 'Senza titolo';
-  let { pageIdx, iconIdx, tempEmoji, tempImage, tempSettori, tempMicro, tempFonte } = editorCtx;
+  let { pageIdx, iconIdx, tempEmoji, tempImage, tempSettori, tempMicro, tempSalti, tempFonte } = editorCtx;
   const esistente = iconIdx !== null ? pages[pageIdx][iconIdx] : null;
   const data = {
     titolo, emoji: tempEmoji, image: tempImage, settori: [...tempSettori],
-    microcategorie: [...tempMicro], fonte: tempFonte,
+    microcategorie: [...tempMicro], salti: [...tempSalti], fonte: tempFonte,
     // pending/boosted sono stati del collegamento, non campi modificabili dall'editor:
     // si preservano da un salvataggio all'altro invece di essere persi.
     pending: esistente ? !!esistente.pending : false,
@@ -1527,7 +1621,7 @@ function closeNotaSheet(){ document.getElementById('nota-sheet').classList.remov
 // (i due pannelli Aspetto/Navigazione restano invece esclusi da questo controllo, perché il
 // tap-ciclo deve poter continuare a funzionare su loro stessi anche da aperti).
 function homeGestureBlocked(){
-  return ['search-sheet','icon-sheet','packs-sheet','confirm-sheet','frame-sheet','quick-sheet','emoji-picker-sheet'].some(id => {
+  return ['search-sheet','icon-sheet','packs-sheet','confirm-sheet','frame-sheet','quick-sheet','emoji-picker-sheet','attach-sheet'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('active');
   });
@@ -2887,15 +2981,50 @@ function buildSearchIndex(){
   settori.forEach((s, idx) => {
     const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
     items.push({ tipo:'tag', label: nome, idx, colore:s.colore });
-    microCategorie[idx].forEach((m, microIdx) => items.push({ tipo:'microcategoria', label: m.nome, idx, microIdx, colore: microColore(idx, microIdx) }));
+    microCategorie[idx].forEach((m, microIdx) => {
+      items.push({ tipo:'microcategoria', label: m.nome, idx, microIdx, colore: microColore(idx, microIdx) });
+      // Salti: un livello più fine, cercabili tutti insieme qui (a differenza del selettore
+      // nella tendina icona, che li mostra solo per le microcategorie già scelte — vedi
+      // renderSaltoChips). Ogni salto porta con sé il nome della sua microcategoria, utile per
+      // dare contesto in un risultato di ricerca isolato.
+      (m.salti || []).forEach((salto, saltoIdx) => {
+        items.push({ tipo:'salto', label: salto.label, idx, microIdx, saltoIdx, colore: microColore(idx, microIdx), parentNome: m.nome });
+      });
+    });
   });
   pages.forEach(pageIcons => pageIcons.forEach(ic => items.push({ tipo:'raccolta', label: ic.titolo, idx: ic.settori[0], colore: settori[ic.settori[0]].colore })));
   return items;
 }
+// Filtro per tema (macroarea): unico filtro con un dato reale dietro, vedi commento nel markup
+// del search-sheet. Tutti i settori attivi di default; si conserva tra un'apertura e l'altra
+// della ricerca (non tra sessioni: non è un'impostazione, è un filtro di lavoro temporaneo).
+let searchThemeFilter = null; // null = tutti attivi; altrimenti Set di indici settore attivi
+function renderSearchFilterRow(){
+  const row = document.getElementById('search-filter-row');
+  row.innerHTML = '';
+  settori.forEach((s, idx) => {
+    const nome = s.nome.charAt(0).toUpperCase() + s.nome.slice(1);
+    const active = !searchThemeFilter || searchThemeFilter.has(idx);
+    const chip = document.createElement('div');
+    chip.className = 'search-filter-chip' + (active ? ' active' : '');
+    chip.textContent = nome;
+    chip.onclick = () => {
+      if(!searchThemeFilter) searchThemeFilter = new Set(settori.map((_, i) => i));
+      if(searchThemeFilter.has(idx)) searchThemeFilter.delete(idx); else searchThemeFilter.add(idx);
+      // Se restano attivi tutti i settori, torna alla modalità "nessun filtro" invece di un Set
+      // pieno equivalente — evita solo di portarsi dietro uno stato inutile.
+      if(searchThemeFilter.size === settori.length) searchThemeFilter = null;
+      renderSearchFilterRow();
+      onSearchInput(document.getElementById('search-input').value);
+    };
+    row.appendChild(chip);
+  });
+}
 function onSearchInput(q){
   const all = buildSearchIndex();
   const query = q.trim().toLowerCase();
-  const filtered = query ? all.filter(it => it.label.toLowerCase().includes(query)) : all;
+  let filtered = query ? all.filter(it => it.label.toLowerCase().includes(query)) : all;
+  if(searchThemeFilter) filtered = filtered.filter(it => it.tipo === 'raccolta' || searchThemeFilter.has(it.idx));
   renderSearchResults(filtered);
 }
 // I risultati non sono più un'unica lista alfabetica mista tra macrocategorie diverse: si
@@ -2916,7 +3045,8 @@ function renderSearchResults(list){
   settori.forEach((s, idx) => {
     const tagItem = list.find(it => it.tipo === 'tag' && it.idx === idx);
     const microItems = list.filter(it => it.tipo === 'microcategoria' && it.idx === idx);
-    if(!tagItem && microItems.length === 0) return;
+    const saltoItems = list.filter(it => it.tipo === 'salto' && it.idx === idx);
+    if(!tagItem && microItems.length === 0 && saltoItems.length === 0) return;
     trovatoQualcosa = true;
     const heading = document.createElement('div');
     heading.className = 'search-macro-heading';
@@ -2924,8 +3054,15 @@ function renderSearchResults(list){
     heading.onclick = () => { closeSearchSheet(); openTag(idx); };
     box.appendChild(heading);
     sortedMicroIndices(idx).forEach(microIdx => {
-      const it = microItems.find(m => m.microIdx === microIdx);
-      if(it) renderSearchRow(box, it, true);
+      const microMatch = microItems.find(m => m.microIdx === microIdx);
+      const saltiQui = saltoItems.filter(sa => sa.microIdx === microIdx);
+      if(!microMatch && saltiQui.length === 0) return;
+      // La microcategoria fa sempre da riga di contesto quando un suo salto è nei risultati,
+      // anche se il testo cercato non corrisponde al suo nome (es. si cerca "Warhol": la riga
+      // "bignè alla crema" compare comunque sopra, altrimenti il salto sembrerebbe orfano).
+      const m = microCategorie[idx][microIdx];
+      renderSearchRow(box, { tipo:'microcategoria', label: m.nome, idx, microIdx, colore: microColore(idx, microIdx) }, true);
+      saltiQui.forEach(sa => renderSearchRow(box, sa, true, true));
     });
   });
   const raccolte = list.filter(it => it.tipo === 'raccolta');
@@ -2941,19 +3078,77 @@ function renderSearchResults(list){
     box.innerHTML = '<p class="hint">Nessun tag o raccolta corrisponde. Prova con un altro termine.</p>';
   }
 }
-function renderSearchRow(box, it, indent){
+function renderSearchRow(box, it, indent, subIndent){
   const row = document.createElement('div');
-  row.className = 'search-row' + (indent ? ' search-row-indent' : '');
-  row.innerHTML = `<span class="tc-dot" style="width:8px;height:8px;border-radius:50%;background:${it.colore};display:inline-block;"></span><span class="sr-label">${it.label}</span>`;
-  row.onclick = () => { closeSearchSheet(); openTag(it.idx); };
+  row.className = 'search-row' + (indent ? ' search-row-indent' : '') + (subIndent ? ' search-row-subindent' : '');
+  const attachBtn = it.tipo === 'raccolta' ? '' : `<button class="search-attach-btn" title="Collega a un'icona già creata" onclick="event.stopPropagation(); openAttachSheet(this.closest('.search-row').__it);">＋</button>`;
+  row.innerHTML = `<span class="tc-dot" style="width:8px;height:8px;border-radius:50%;background:${it.colore};display:inline-block;"></span><span class="sr-label">${it.label}</span>${attachBtn}`;
+  row.__it = it; // riferimento diretto per il pulsante di collegamento, evita di serializzare l'oggetto in HTML
+  row.onclick = () => {
+    closeSearchSheet();
+    if(it.tipo === 'salto') goToSalto(it.idx, it.microIdx, it.saltoIdx);
+    else openTag(it.idx);
+  };
   box.appendChild(row);
+}
+// Apre direttamente un salto specifico trovato in ricerca: la scheda del tag, poi lo schermo
+// intero della sua microcategoria, poi il salto stesso — così come se l'utente ci fosse arrivato
+// sfogliando a mano, solo più diretto.
+function goToSalto(idx, microIdx, saltoIdx){
+  openTag(idx);
+  const seed = settori[idx].nome + microIdx;
+  openFullscreen(seed, settori[idx], microIdx);
+  openSaltoSheet(saltoIdx);
 }
 function openSearchSheet(){
   document.getElementById('search-input').value = '';
+  renderSearchFilterRow();
   onSearchInput('');
   document.getElementById('search-sheet').classList.add('active');
 }
 function closeSearchSheet(){ document.getElementById('search-sheet').classList.remove('active'); }
+
+// Collega un tag/microcategoria/salto trovato in ricerca a un'icona già creata (senza dover
+// riaprire la sua scheda di modifica) — si apre sopra .search-sheet, che resta aperta sotto.
+let attachCtx = null; // l'item di ricerca (tag/microcategoria/salto) da collegare
+function openAttachSheet(it){
+  attachCtx = it;
+  document.getElementById('attach-hint').textContent = `Aggiungi "${it.label}" a un'icona già creata:`;
+  const list = document.getElementById('attach-icon-list');
+  list.innerHTML = '';
+  let trovata = false;
+  pages.forEach((pageIcons, pIdx) => {
+    pageIcons.forEach((ic, iIdx) => {
+      trovata = true;
+      const b = document.createElement('button');
+      b.className = 'quick-action-item';
+      b.textContent = ic.titolo;
+      b.onclick = () => attachToIcon(pIdx, iIdx);
+      list.appendChild(b);
+    });
+  });
+  if(!trovata) list.innerHTML = '<p class="hint">Non hai ancora nessuna icona: creane una prima dalla home.</p>';
+  document.getElementById('attach-sheet').classList.add('active');
+}
+function attachToIcon(pageIdx, iconIdx){
+  if(!attachCtx) return;
+  const ic = pages[pageIdx][iconIdx];
+  if(!ic.settori.includes(attachCtx.idx)) ic.settori.push(attachCtx.idx);
+  if(attachCtx.tipo === 'microcategoria'){
+    ic.microcategorie = ic.microcategorie || [];
+    const key = attachCtx.idx + '|' + attachCtx.microIdx;
+    if(!ic.microcategorie.includes(key)) ic.microcategorie.push(key);
+  } else if(attachCtx.tipo === 'salto'){
+    ic.salti = ic.salti || [];
+    const key = attachCtx.idx + '|' + attachCtx.microIdx + '|' + attachCtx.saltoIdx;
+    if(!ic.salti.includes(key)) ic.salti.push(key);
+  }
+  closeAttachSheet();
+  closeSearchSheet();
+  renderPages();
+  saveLayout();
+}
+function closeAttachSheet(){ document.getElementById('attach-sheet').classList.remove('active'); attachCtx = null; }
 
 // Nota sul cambio di significato dello swipe: sulla griglia a 9 (sopra) scorrere lateralmente
 // ora passa da una pagina di refresh all'altra (gestito nativamente da .grid-pages con
@@ -3198,9 +3393,8 @@ function updatePorzione(v){ porzioneDurata = parseInt(v); secondsLeft = porzione
 function tickPorzione(){
   if(!simulaTempo) return;
   secondsLeft--; if(secondsLeft <= 0) secondsLeft = porzioneDurata;
-  const m = String(Math.floor(secondsLeft/60)).padStart(2,'0');
-  const sVal = String(secondsLeft%60).padStart(2,'0');
-  document.getElementById('timer-label').textContent = m+':'+sVal;
+  // Il testo sotto il quadrante non mostra più il countdown (vedi clock-hint-label, statico) —
+  // il meccanismo a intervallo fisso resta comunque attivo e guida solo le lancette.
   const progress = (porzioneDurata-secondsLeft)/porzioneDurata;
   document.getElementById('hand-min').style.transform = `rotate(${progress*360}deg)`;
   document.getElementById('hand-hour').style.transform = `rotate(${progress*90}deg)`;
@@ -3416,7 +3610,7 @@ const SESSION_KEY = 'smarchive:session:v2';
 function saveLayout(){
   try{
     localStorage.setItem(LAYOUT_KEY, JSON.stringify({
-      pages, cols, clockPosition, showCreditsWidget, showLastWidget,
+      pages, cols, clockPosition, showCreditsWidget, showLastWidget, showClockHint,
       activeWallpaperId, customWallpaperDataUrl,
       downloadedWallpaperIds: downloadedWallpapers.map(w => w.id),
       downloadedMoodIds: moods.filter(m => m.id).map(m => m.id),
@@ -3485,6 +3679,10 @@ function loadLayoutState(){
     if(typeof s.showLastWidget === 'boolean'){
       showLastWidget = s.showLastWidget;
       document.getElementById('toggle-last-widget').checked = s.showLastWidget;
+    }
+    if(typeof s.showClockHint === 'boolean'){
+      document.getElementById('toggle-clock-hint').checked = s.showClockHint;
+      toggleClockHint(s.showClockHint);
     }
     if(typeof s.maxCredits === 'number'){
       document.getElementById('input-crediti').value = s.maxCredits;
