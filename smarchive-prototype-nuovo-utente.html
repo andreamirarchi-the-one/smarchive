@@ -205,8 +205,20 @@
   .back-row span{ font-size:13px; color:var(--ink-soft); }
   .tag-title{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
   .tag-dot{ width:12px; height:12px; border-radius:50%; }
-  .tag-title h2{ font-family:'Fraunces',serif; font-weight:500; font-size:19px; margin:0; }
+  .tag-title h2{ font-family:'Fraunces',serif; font-weight:500; font-size:19px; margin:0; color:var(--ink); }
   .subtitle{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; }
+  /* Sfondo confinato alla sola home (bug segnalato dall'utente: la foto/colore reale mostrata
+     dietro la griglia rendeva spesso il testo poco leggibile) — vedi computeTagviewBg /
+     applyTagviewTheme. #tagview riceve qui il colore dominante dello sfondo come sfondo pieno,
+     mai la foto vera. Se quel colore risulta scuro, --ink/--ink-soft/--line vengono sovrascritte
+     qui: essendo ereditate, ogni elemento sotto che le usa (titolo, sottotitolo, hint, pulsanti,
+     icona Home) si adatta da solo, senza dover toccare regola per regola — stesso principio del
+     testo chiaro già usato in .fs-bottom sullo schermo intero. Le uniche eccezioni sono gli
+     elementi con un loro sfondo chiaro pieno indipendente dal tema (pos-btn/ghost-btn bianchi,
+     glass-chip vetro semitrasparente): per loro le variabili tornano al valore normale, o il
+     testo scuro sparirebbe su uno sfondo che resta comunque chiaro. */
+  #tagview.on-dark{ --ink:#fff; --ink-soft:#D8D5C9; --line:rgba(255,255,255,0.28); }
+  #tagview.on-dark .pos-btn, #tagview.on-dark .ghost-btn, #tagview.on-dark .glass-chip{ --ink:#211F1A; --ink-soft:#5B584E; }
   /* Griglia a 9 organizzata in "pagine" scorribili lateralmente: una pagina per ogni refresh
      dell'intera griglia (vedi refreshWholeGrid), stesso principio delle pagine di icone in home
      (.pages/.page-dots), qui applicato alla griglia delle foto invece che alle icone. Nessuna
@@ -1892,9 +1904,86 @@ function setWallpaper(bg, id, el){
   document.getElementById('screen').style.background = bg;
   document.querySelectorAll('.wp-swatch').forEach(s=>s.classList.remove('active'));
   if(el) el.classList.add('active');
+  computeTagviewBg();
   saveLayout();
 }
 renderWallpaperRow();
+
+// Colore di sfondo per la griglia (#tagview), confinato alla sola home lo sfondo vero — vedi
+// commento CSS su #tagview.on-dark. `hexToRgb`/`isColorDark` sono usate anche altrove per lo
+// stesso motivo (leggibilità testo su sfondo variabile), tenute qui per restare vicine al loro
+// solo altro punto di lettura (computeTagviewBg).
+function hexToRgb(hex){
+  const m = hex.replace('#', '');
+  const full = m.length === 3 ? m.split('').map(c => c + c).join('') : m;
+  const n = parseInt(full, 16) || 0;
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function isColorDark(r, g, b){
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128; // luminanza percepita, formula YIQ
+}
+let tagviewBg = '#F6F3EC', tagviewIsDark = false;
+// Estrae un colore dominante approssimato campionando l'immagine ridotta a 8x8 pixel e
+// mediandoli — una vera estrazione per istogramma sarebbe più fedele ma anche molto più pesante
+// per uno sfondo che deve solo restare leggibile, non essere accurato.
+function computeTagviewBg(){
+  if(customWallpaperDataUrl){
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 8; c.height = 8;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 8, 8);
+        const data = ctx.getImageData(0, 0, 8, 8).data;
+        let r = 0, g = 0, b = 0, n = 0;
+        for(let i = 0; i < data.length; i += 4){ r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
+        r = Math.round(r/n); g = Math.round(g/n); b = Math.round(b/n);
+        tagviewBg = `rgb(${r},${g},${b})`;
+        tagviewIsDark = isColorDark(r, g, b);
+      } catch(err){
+        // canvas "tainted" o immagine non ancora valida: si ricade su un grigio neutro scuro,
+        // mai un errore visibile.
+        tagviewBg = '#5B584E'; tagviewIsDark = true;
+      }
+      if(document.getElementById('tagview').classList.contains('active')) applyTagviewTheme();
+    };
+    img.src = customWallpaperDataUrl;
+  } else {
+    const w = [...wallpaperBase, ...downloadedWallpapers].find(x => x.id === activeWallpaperId);
+    const hex = (w && w.value) || '#F6F3EC';
+    tagviewBg = hex;
+    const { r, g, b } = hexToRgb(hex);
+    tagviewIsDark = isColorDark(r, g, b);
+    if(document.getElementById('tagview').classList.contains('active')) applyTagviewTheme();
+  }
+}
+// Applica il colore già calcolato allo #screen (mentre la griglia è in vista) e adatta il testo.
+function applyTagviewTheme(){
+  const screen = document.getElementById('screen');
+  screen.style.backgroundImage = 'none';
+  screen.style.backgroundSize = '';
+  screen.style.backgroundPosition = '';
+  screen.style.background = tagviewBg;
+  document.getElementById('tagview').classList.toggle('on-dark', tagviewIsDark);
+}
+// Ripristina la vera foto/colore di sfondo quando si torna in home — vedi goHome.
+function restoreHomeWallpaper(){
+  const screen = document.getElementById('screen');
+  if(customWallpaperDataUrl){
+    screen.style.background = 'none';
+    screen.style.backgroundImage = `url(${customWallpaperDataUrl})`;
+    screen.style.backgroundSize = frameZoom + '%';
+    screen.style.backgroundPosition = frameX + '% ' + frameY + '%';
+  } else {
+    const w = [...wallpaperBase, ...downloadedWallpapers].find(x => x.id === activeWallpaperId);
+    screen.style.backgroundImage = 'none';
+    screen.style.backgroundSize = '';
+    screen.style.backgroundPosition = '';
+    screen.style.background = (w && (w.preview || w.value)) || '#F6F3EC';
+  }
+}
+computeTagviewBg();
 function openConfirmSheet(){ document.getElementById('confirm-sheet').classList.add('active'); }
 function closeConfirmSheet(){ document.getElementById('confirm-sheet').classList.remove('active'); }
 function confirmPhotoAccess(){ closeConfirmSheet(); document.getElementById('file-input').click(); }
@@ -1931,6 +2020,7 @@ function applyFrame(){
   document.querySelectorAll('.wp-swatch').forEach(s=>s.classList.remove('active'));
   customWallpaperDataUrl = frameImageData;
   activeWallpaperId = null;
+  computeTagviewBg();
   saveLayout();
   closeFrameSheet();
 }
@@ -2145,6 +2235,7 @@ function openTag(idx){
   // disallineati, ogni volta che si riapriva un tag già refreshato in precedenza.
   document.getElementById('home').classList.remove('active');
   document.getElementById('tagview').classList.add('active');
+  applyTagviewTheme();
   renderGridPages(idx);
   lastCreditsInfo = { idx };
   sessionTagsVisitati.add(idx);
@@ -2152,7 +2243,7 @@ function openTag(idx){
   renderVisitedRow();
   saveSession();
 }
-function goHome(){ document.getElementById('tagview').classList.remove('active'); document.getElementById('home').classList.add('active'); }
+function goHome(){ document.getElementById('tagview').classList.remove('active'); document.getElementById('home').classList.add('active'); restoreHomeWallpaper(); }
 
 // Comprime/espande il pannello di gestione sessione sotto la griglia a 9 (refresh, microcategorie
 // esplorate, versioni conservate, organizzazione) — segnalato dal pulsante glass sopra di esso.
@@ -3731,6 +3822,7 @@ function loadLayoutState(){
       document.getElementById('screen').style.background = 'none';
       document.getElementById('screen').style.backgroundImage = `url(${customWallpaperDataUrl})`;
       document.querySelectorAll('.wp-swatch').forEach(el => el.classList.remove('active'));
+      computeTagviewBg();
     } else if(typeof s.activeWallpaperId === 'string'){
       const all = [...wallpaperBase, ...downloadedWallpapers];
       const w = all.find(x => x.id === s.activeWallpaperId);
