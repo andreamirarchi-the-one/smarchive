@@ -523,9 +523,9 @@
              laterale tra microcategorie: quello resta sempre libero (vedi navigateMicro). -->
         <div class="credits-row" id="credits-row"><p>Refresh disponibili</p><div class="credit-dots" id="credit-dots"></div></div>
         <button class="ghost-btn" id="grid-refresh-btn" onclick="refreshWholeGrid()">Aggiorna tutta la griglia</button>
-        <p class="hint" style="margin-top:-2px;">Rigenera tutte e 9 le foto di questo tag in un colpo solo. Le foto sostituite non spariscono: restano conservate come pagine scorribili sopra la griglia, con i pallini per saltarci subito.</p>
+        <p class="hint" style="margin-top:-2px;">Rigenera tutte e 9 le foto di questo tag in un colpo solo. Le foto sostituite non spariscono: restano conservate come pallini scorribili qui sotto, il numero di refresh viene gestito dalla schermata in alto a destra nella home.</p>
         <div id="visited-row"></div>
-        <p class="swipe-hint">← nello schermo intero di una microcategoria, scorri per sfogliare liberamente le altre microcategorie di questo tag (mai cambia categoria, sempre gratis) — il refresh dell'intera griglia invece consuma un refresh disponibile</p>
+        <p class="swipe-hint">← nello schermo intero di una query, scorri per sfogliare liberamente le altre query di questa macroarea. Naviga qui sotto tra i salti delle query.</p>
 
         <div class="organize-panel" id="organize-panel">
           <p class="row-label" style="margin-top:18px;">Porzioni aperte in questa sessione</p>
@@ -604,7 +604,7 @@
              mai lo swipe stesso. Non esiste più un refresh per singola foto. -->
         <div class="field-row"><span class="row-label">Refresh disponibili</span><input type="range" min="3" max="18" value="3" id="input-crediti" oninput="updateCrediti(this.value)"><span class="val-badge" id="crediti-val">3</span></div>
         <div class="range-ticks"><span>3</span><span>18</span></div>
-        <p class="hint">Ogni tag già toccato in questa sessione resta sempre raggiungibile e ogni sua microcategoria resta sempre sfogliabile, senza consumare refresh. Il refresh serve solo a rigenerare tutte e 9 le foto del tag aperto in quel momento, tutte insieme.</p>
+        <p class="hint">Ogni tag già toccato in questa sessione resta sempre raggiungibile e ogni sua query resta sempre sfogliabile, senza consumare refresh. Il refresh serve solo a rigenerare tutte e 9 le foto del tag aperto in quel momento, tutte insieme.</p>
 
         <!-- Registro intenso: autodichiarato dall'utente (nessun documento, nessuna verifica
              d'identità reale — sproporzionata per foto storiche già liberamente pubbliche), un
@@ -698,9 +698,9 @@
 
       <!-- Collegamento più fine, facoltativo: una o più microcategorie tra quelle dei tag scelti
            sopra — utile per raccolte mirate invece che legate a un intero settore. -->
-      <p class="row-label">Microcategorie (facoltativo)</p>
+      <p class="row-label">Query (facoltativo)</p>
       <div class="micro-chip-row" id="micro-chip-row"></div>
-      <p class="micro-hint" id="micro-hint">Seleziona almeno un tag sopra per vedere le sue microcategorie.</p>
+      <p class="micro-hint" id="micro-hint">Seleziona almeno un tag sopra per vedere le sue query.</p>
 
       <!-- Salti (facoltativo, un livello più fine delle microcategorie): mostra solo i salti
            delle microcategorie già selezionate sopra, mai tutti e 700 in un unico elenco piatto —
@@ -709,7 +709,7 @@
            dalla banda di ricerca (vedi openAttachSheet), che invece li cerca tutti insieme. -->
       <p class="row-label">Salti (facoltativo)</p>
       <div class="micro-chip-row" id="salto-chip-row"></div>
-      <p class="micro-hint" id="salto-hint">Seleziona almeno una microcategoria sopra per vedere i suoi salti.</p>
+      <p class="micro-hint" id="salto-hint">Seleziona almeno una query sopra per vedere i suoi salti.</p>
 
       <p class="row-label">Fonte collegata</p>
       <div class="pos-row">
@@ -779,7 +779,7 @@
     <div class="sheet-card">
       <div class="sheet-handle"></div>
       <h3 class="title-h">Cerca</h3>
-      <input type="text" id="search-input" placeholder="Cerca un tag, una microcategoria, un salto…" oninput="onSearchInput(this.value)">
+      <input type="text" id="search-input" placeholder="Cerca un tag, una query, un salto…" oninput="onSearchInput(this.value)">
       <!-- Filtro per tema (macroarea): l'unico filtro con un dato reale dietro (le altre idee
            discusse — provenienza del link, ubicazione, colore, periodo — non hanno ancora un
            campo dati affidabile per ogni salto, si rischierebbe di inventarlo; si aggiungono
@@ -1565,8 +1565,8 @@ function renderSaltoChips(){
   if(conSalti.length === 0){
     hint.style.display = 'block';
     hint.textContent = editorCtx.tempMicro.length === 0
-      ? 'Seleziona almeno una microcategoria sopra per vedere i suoi salti.'
-      : 'Nessuna delle microcategorie scelte ha ancora dei salti.';
+      ? 'Seleziona almeno una query sopra per vedere i suoi salti.'
+      : 'Nessuna delle query scelte ha ancora dei salti.';
     return;
   }
   hint.style.display = 'none';
@@ -2351,7 +2351,7 @@ function renderVisitedRow(){
     const isCurrent = sIdx === currentTagIdx;
     return `<div class="visited-chip${isCurrent ? ' current' : ''}" style="background:${microColore(sIdx, mIdx)}" title="${m.nome}" onclick="openTagRevisit(${sIdx})">${m.nome.charAt(0).toUpperCase()}</div>`;
   }).join('');
-  box.innerHTML = `<p class="hint" style="margin:10px 0 6px;">Microcategorie esplorate in questa sessione — sempre raggiungibili:</p><div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>`;
+  box.innerHTML = `<p class="hint" style="margin:10px 0 6px;">Query esplorate in questa sessione — sempre raggiungibili:</p><div style="display:flex;gap:6px;flex-wrap:wrap;">${chips}</div>`;
 }
 function openTagRevisit(idx){
   if(inWait){ document.getElementById('lockout').classList.add('active'); return; }
