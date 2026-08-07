@@ -320,8 +320,13 @@
      ancorati in alto invece che a destra. */
   .top-panel-bg{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.32); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); z-index:40; }
   .top-panel-bg.active{ display:block; }
-  .top-panel{ position:absolute; top:0; width:84%; max-height:82%; background:rgba(246,243,236,0.94); backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5); box-shadow:0 14px 30px rgba(33,31,26,0.18); z-index:41; border-radius:0 0 22px 22px; transform:translateY(-100%); transition:transform .38s cubic-bezier(.32,.72,0,1), width .32s ease, max-height .32s ease, bottom .32s ease, border-radius .32s ease; display:flex; flex-direction:column; overflow:hidden; }
-  .top-panel.active{ transform:translateY(0); }
+  /* will-change + translate3d (bug corretto, segnalato dall'utente — lo scattino nell'apertura/
+     chiusura di Aspetto e Sessione): il pannello anima transform mentre ha anche un
+     backdrop-filter attivo (il blur sullo sfondo) — senza un hint esplicito il browser ricalcola
+     il blur a ogni fotogramma invece di trattare il pannello già sfocato come un livello
+     compositato a parte da limitarsi a spostare, ed è proprio lì che nasce lo scatto. */
+  .top-panel{ position:absolute; top:0; width:84%; max-height:82%; background:rgba(246,243,236,0.94); backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5); box-shadow:0 14px 30px rgba(33,31,26,0.18); z-index:41; border-radius:0 0 22px 22px; transform:translate3d(0,-100%,0); will-change:transform; transition:transform .38s cubic-bezier(.32,.72,0,1), width .32s ease, max-height .32s ease, bottom .32s ease, border-radius .32s ease; display:flex; flex-direction:column; overflow:hidden; }
+  .top-panel.active{ transform:translate3d(0,0,0); }
   .top-panel.dragging{ transition:none; }
   /* Secondo "stop": da entrambi i lati, un trascinamento più deciso estende il pannello a
      schermo intero (bottom:0 lo fa aderire fino in fondo, senza dipendere da percentuali di
@@ -589,6 +594,17 @@
         <div class="range-ticks"><span>3</span><span>18</span></div>
         <p class="hint">Ogni tag già toccato in questa sessione resta sempre raggiungibile e ogni sua microcategoria resta sempre sfogliabile, senza consumare refresh. Il refresh serve solo a rigenerare tutte e 9 le foto del tag aperto in quel momento, tutte insieme.</p>
 
+        <!-- Registro intenso: autodichiarato dall'utente (nessun documento, nessuna verifica
+             d'identità reale — sproporzionata per foto storiche già liberamente pubbliche), un
+             interruttore con conferma esplicita, sullo stesso principio del "contenuto sensibile"
+             di Wikipedia. Quando attivo, i soli salti che già toccano temi di distruzione/morte
+             (vedi `queryIntenso` in microCategorie) cercano la loro traduzione più diretta e
+             cruda invece di quella attenuata di default — mai violenza iniettata dove non c'era
+             già, sempre foto reali e storiche, mai gratuite. Vedi openSaltoSheet. -->
+        <p class="section-label">Contenuti</p>
+        <div class="switch-row"><span class="row-label" style="margin:0;">Registro intenso nei salti</span><label class="switch"><input type="checkbox" id="toggle-intenso" onchange="onToggleIntenso(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
+        <p class="hint">Dove un salto tocca già temi di distruzione o morte, mostra la sua traduzione più diretta e cruda invece di quella attenuata — sempre foto storiche reali, mai immagini generate.</p>
+
         <p class="section-label">Sessione</p>
         <div class="field-row"><span class="row-label">Utilizzo netto massimo (min)</span><input type="number" min="5" max="180" value="55" id="input-maxnav" onchange="saveLayout()"></div>
         <p class="hint">Conta solo il tempo passato sulle griglie e sulle singole foto — home, aspetto e modifica icone restano sempre libere. Si ferma anche se l'app va in background.</p>
@@ -784,6 +800,21 @@
       <div class="sheet-actions">
         <button class="secondary" onclick="closeConfirmSheet()">Non consentire</button>
         <button class="primary" onclick="confirmPhotoAccess()">Consenti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Autodichiarazione per il registro intenso: nessun documento, nessuna verifica reale —
+       solo una conferma esplicita prima di attivare, coerente col fatto che restano comunque
+       sempre e solo foto storiche reali (mai gratuite, mai generate). -->
+  <div class="confirm-sheet" id="intenso-confirm-sheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <h3 class="title-h">Registro intenso</h3>
+      <p class="bio">Dove un salto tocca già temi di distruzione o morte, vedrai la sua traduzione più diretta e cruda — sempre foto storiche reali e documentarie, mai immagini generate o gratuite. Confermi di volerle vedere?</p>
+      <div class="sheet-actions">
+        <button class="secondary" onclick="cancelIntenso()">Annulla</button>
+        <button class="primary" onclick="confirmIntenso()">Confermo</button>
       </div>
     </div>
   </div>
@@ -986,10 +1017,10 @@ const microCategorie = {
   // che si sono rivelati inaffidabili (foto amatoriali moderne di soggetti generici, illustrazioni
   // scientifiche di nicchia spesso chiuse in scansioni PDF di libri).
   3: [
-    {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'Caso', query:['storm clouds photograph dramatic']}]},
+    {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph'], queryIntenso:['San Francisco earthquake 1906 ruins photograph', 'earthquake destruction rescue photograph historical']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph'], queryIntenso:['earthquake rubble destruction photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph'], queryIntenso:['building collapse ruins photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'Caso', query:['storm clouds photograph dramatic']}]},
     {nome:'bioforma', sfumatura:14, img:['Haeckel Kunstformen der Natur illustration', 'natural history illustration engraving antique'], salti:[{label:'Cellula', query:['cork cellular structure engraving Hooke']}, {label:'Mutazione', query:['natural history specimen anomaly museum photograph']}, {label:'Crescita', query:['tree rings cross section photograph']}, {label:'Simmetria', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Metamorfosi', query:['butterfly metamorphosis illustration antique']}, {label:'Parassitismo', query:['parasite illustration natural history antique']}, {label:'Simbiosi', query:['lichen photograph natural history']}, {label:'Estinzione', query:['dodo illustration historical']}, {label:'Riproduzione', query:['seed pod photograph natural history']}, {label:'Evoluzione', query:['Darwin finch illustration natural history']}, {label:'Disegno', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Origine della vita', query:['trilobite fossil photograph museum']}]},
     {nome:'temporali e arcobaleni', sfumatura:-6, img:['rainbow photograph landscape', 'lightning storm photograph vintage'], salti:[{label:'Fenomeno', query:['halo sun photograph atmospheric']}, {label:'Scarica', query:['lightning bolt photograph vintage']}, {label:'Diluvio', query:['flood historical photograph documentary']}, {label:'Luce', query:['sunbeam photograph landscape']}, {label:'Prisma', query:['prism light spectrum photograph']}, {label:'Atmosfera', query:['clouds sky photograph NASA']}, {label:'Previsione', query:['weather station instruments photograph vintage']}, {label:'Fotografia', query:['daguerreotype camera photograph antique']}, {label:'Doppio', query:['double rainbow photograph']}, {label:'Dopo', query:['sunset after storm photograph']}, {label:'Infinito', query:['night sky stars long exposure photograph']}]},
-    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'Simmetria cosmica', query:['spiral galaxy photograph NASA']}]},
+    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary'], queryIntenso:['tornado devastation aftermath photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'Simmetria cosmica', query:['spiral galaxy photograph NASA']}]},
     {nome:'collab interspecie', sfumatura:-14, img:['Dürer rhinoceros woodcut natural history', 'natural history menagerie engraving antique'], salti:[{label:'Simbiosi', query:['clownfish anemone photograph natural history']}, {label:'Impollinazione', query:['bee flower engraving natural history']}, {label:'Addomesticamento', query:['shepherd dog sheep photograph historical']}, {label:'Alleanza', query:['Dürer rhinoceros woodcut natural history']}, {label:'Pulizia', query:['egret cattle photograph natural history']}, {label:'Protezione', query:['mother animal offspring photograph natural history']}, {label:'Allarme', query:['meerkat sentinel photograph natural history']}, {label:'Cooperazione', query:['ants photograph natural history macro']}, {label:'Ospite', query:['hermit crab shell photograph natural history']}, {label:'Traduzione', query:['honeybee hive frame photograph vintage']}, {label:'Miracolo', query:['aurora borealis photograph']}]},
     {nome:'impronte', sfumatura:8, img:['animal tracks snow photograph', 'fossil footprint photograph museum'], salti:[{label:'Traccia', query:['animal tracks mud photograph']}, {label:'Passo', query:['footprint sand photograph vintage']}, {label:'Fango', query:['animal tracks mud photograph documentary']}, {label:'Neve', query:['animal tracks snow photograph']}, {label:'Calco', query:['plaster cast reproduction sculpture museum']}, {label:'Predatore', query:['wolf tracks snow photograph']}, {label:'Preda', query:['deer tracks photograph natural history']}, {label:'Sentiero', query:['forest trail photograph vintage']}, {label:'Fossile', query:['dinosaur footprint fossil photograph museum']}, {label:'Assenza', query:['abandoned nest photograph natural history']}, {label:'Causa prima', query:['trilobite fossil photograph museum']}]},
     {nome:'la tana', sfumatura:-2, img:['animal burrow photograph natural history', 'fox den photograph natural history'], salti:[{label:'Rifugio', query:['animal shelter cave photograph natural history']}, {label:'Scavo', query:['burrow excavation photograph natural history']}, {label:'Nido', query:['bird nest photograph natural history']}, {label:'Cunicolo', query:['rabbit warren photograph natural history']}, {label:'Buio', query:['cave interior dark photograph']}, {label:'Custodia', query:['animal guarding den photograph natural history']}, {label:'Ingresso', query:['cave entrance photograph vintage']}, {label:'Deposito', query:['squirrel food cache photograph natural history']}, {label:'Letargo', query:['bear hibernation den photograph natural history']}, {label:'Labirinto', query:['maze diagram engraving antique']}, {label:'Dubbio', query:['fog landscape photograph mysterious']}]},
@@ -1071,6 +1102,25 @@ let clockPosition = 'sopra'; // 'sopra' | 'griglia' | 'sotto' — dichiarata qui
 let showCreditsWidget = false;
 let showLastWidget = false;
 let showClockHint = true; // "Pigia l'orologio per navigare tra i salti" — nascondibile da Aspetto
+// Registro intenso: autodichiarato (nessun documento, nessuna verifica reale — vedi conferma
+// in intenso-confirm-sheet), non persistito come "sicuro" a vita ma richiesto di nuovo se non
+// salvato — vedi saveLayout/loadLayoutState. Di default sempre spento a ogni nuova sessione? No:
+// si rispetta la scelta già fatta, come qualunque altra preferenza — l'autodichiarazione vale
+// per l'uso dell'app su questo device, non va ripetuta ogni volta.
+let registroIntenso = false;
+function onToggleIntenso(v){
+  if(v){ document.getElementById('intenso-confirm-sheet').classList.add('active'); }
+  else { registroIntenso = false; saveLayout(); }
+}
+function confirmIntenso(){
+  registroIntenso = true;
+  document.getElementById('intenso-confirm-sheet').classList.remove('active');
+  saveLayout();
+}
+function cancelIntenso(){
+  document.getElementById('toggle-intenso').checked = false;
+  document.getElementById('intenso-confirm-sheet').classList.remove('active');
+}
 let lastCreditsInfo = null; // {idx, colore} dell'ultimo tag visitato, per il widget crediti
 let lastDiscovery = null;   // {seed, idx, microIdx} dell'ultimo spunto aperto a schermo intero
 
@@ -1241,7 +1291,12 @@ function setClockPosition(pos){
 (function initClockInteraction(){
   const cc = document.getElementById('clock-center');
   const cf = document.getElementById('clockface');
-  const EDGE_RATIO = 0.55; // oltre il 55% del raggio dal centro è considerato "bordo"
+  // Alzato da 0.55 a 0.72 (bug corretto, segnalato dall'utente): con 0.55 la zona di tap per
+  // aprire la ricerca era solo il 55% del raggio al centro — su un quadrante di 64px, un cerchio
+  // di appena ~18px di raggio, troppo piccolo da colpire con un dito, capitava spesso di
+  // innescare invece il drag (zona esterna, molto più ampia in proporzione). Ora la zona di tap
+  // copre il 72% del raggio, il drag resta comunque disponibile sull'anello più esterno.
+  const EDGE_RATIO = 0.72;
   let mode = null; // 'drag' | 'tap' | null
   let startY = 0;
   cf.addEventListener('pointerdown', (e) => {
@@ -1630,7 +1685,7 @@ function closeNotaSheet(){ document.getElementById('nota-sheet').classList.remov
 // (i due pannelli Aspetto/Navigazione restano invece esclusi da questo controllo, perché il
 // tap-ciclo deve poter continuare a funzionare su loro stessi anche da aperti).
 function homeGestureBlocked(){
-  return ['search-sheet','icon-sheet','packs-sheet','confirm-sheet','frame-sheet','quick-sheet','emoji-picker-sheet','attach-sheet'].some(id => {
+  return ['search-sheet','icon-sheet','packs-sheet','confirm-sheet','frame-sheet','quick-sheet','emoji-picker-sheet','attach-sheet','intenso-confirm-sheet'].some(id => {
     const el = document.getElementById(id);
     return el && el.classList.contains('active');
   });
@@ -2905,7 +2960,11 @@ function openSaltoSheet(i){
   document.getElementById('salto-sheet').classList.add('active');
   const token = 'salto-' + i + '-' + Date.now();
   window._saltoCurrentToken = token;
-  fetchPublicDomainImage(salto.query, true).then(result => {
+  // Registro intenso: solo dove il salto ha già una sua traduzione più diretta/cruda pronta
+  // (`queryIntenso`, scritta a mano come `query`) e l'utente l'ha attivato di sua scelta — mai
+  // violenza iniettata dove il salto non la prevedeva già, mai al posto di `query` se manca.
+  const queryDaUsare = (registroIntenso && salto.queryIntenso) ? salto.queryIntenso : salto.query;
+  fetchPublicDomainImage(queryDaUsare, true).then(result => {
     // Se nel frattempo si è chiuso il salto o se ne è aperto un altro, questo risultato in
     // ritardo non deve più toccare la vista (stesso principio del token già usato altrove).
     if(window._saltoCurrentToken !== token) return;
@@ -3619,7 +3678,7 @@ const SESSION_KEY = 'smarchive:session:v2';
 function saveLayout(){
   try{
     localStorage.setItem(LAYOUT_KEY, JSON.stringify({
-      pages, cols, clockPosition, showCreditsWidget, showLastWidget, showClockHint,
+      pages, cols, clockPosition, showCreditsWidget, showLastWidget, showClockHint, registroIntenso,
       activeWallpaperId, customWallpaperDataUrl,
       downloadedWallpaperIds: downloadedWallpapers.map(w => w.id),
       downloadedMoodIds: moods.filter(m => m.id).map(m => m.id),
@@ -3692,6 +3751,12 @@ function loadLayoutState(){
     if(typeof s.showClockHint === 'boolean'){
       document.getElementById('toggle-clock-hint').checked = s.showClockHint;
       toggleClockHint(s.showClockHint);
+    }
+    // Ripristina la scelta già fatta senza far ripassare dalla conferma esplicita — quella
+    // serve solo la prima volta che si attiva, non a ogni caricamento della sessione salvata.
+    if(typeof s.registroIntenso === 'boolean'){
+      registroIntenso = s.registroIntenso;
+      document.getElementById('toggle-intenso').checked = s.registroIntenso;
     }
     if(typeof s.maxCredits === 'number'){
       document.getElementById('input-crediti').value = s.maxCredits;
