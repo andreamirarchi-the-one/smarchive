@@ -98,7 +98,13 @@
   .tile .icon span.emoji{ font-size:18px; }
   .tile.add .icon{ border-style:dashed; background-color:transparent; color:var(--ink-soft); }
   .dot-row{ position:absolute; bottom:4px; left:0; right:0; display:flex; justify-content:center; gap:3px; }
+  /* Taglia dei pallini colorati sotto l'icona home (una per macroarea collegata): tre livelli
+     selezionabili da Aspetto, vedi setDotSize. "piccolo" resta la taglia originale, mai
+     rimpicciolita di default — solo "medio"/"grande" spingono verso una maggiore leggibilità
+     del colore, richiesta esplicita dell'utente. */
   .dot{ width:5px; height:5px; border-radius:50%; }
+  body.dot-size-medio .dot{ width:7px; height:7px; }
+  body.dot-size-grande .dot{ width:9px; height:9px; }
   .tile .title{ font-size:10px; font-weight:500; color:var(--ink); line-height:1.2; }
   .edit-badge{ position:absolute; top:-3px; right:2px; width:15px; height:15px; border-radius:50%; background:var(--ink); color:#fff; display:none; align-items:center; justify-content:center; font-size:9px; z-index:2; }
   body.editing .edit-badge{ display:flex; }
@@ -571,6 +577,13 @@
         <p class="row-label">Dimensione icone</p>
         <div class="field-row"><input type="range" min="3" max="8" value="4" id="input-size" oninput="updateIconSize(this.value)"><span class="val-badge" id="size-val">4 per riga</span></div>
         <div class="range-ticks"><span>più grandi</span><span>più piccole</span></div>
+        <p class="row-label">Pallini delle macroaree</p>
+        <div class="pos-row">
+          <button class="pos-btn active" id="dot-size-btn-piccolo" onclick="setDotSize('piccolo')">Piccoli</button>
+          <button class="pos-btn" id="dot-size-btn-medio" onclick="setDotSize('medio')">Medi</button>
+          <button class="pos-btn" id="dot-size-btn-grande" onclick="setDotSize('grande')">Grandi</button>
+        </div>
+        <p class="hint" style="margin-top:-2px;">La grandezza dei pallini colorati sotto ogni icona, uno per macroarea collegata.</p>
         <button class="ghost-btn" onclick="toggleEdit(); closeTopPanels();">Modifica icone</button>
         <p class="hint">Si torna alla home: tocca un'icona per cambiarla (emoji, sticker o foto), o il riquadro tratteggiato per aggiungerne una nuova. Tocca "Fatto" in alto per uscire. Una pressione prolungata su un'icona apre anche azioni rapide, senza dover entrare in modifica.</p>
 
@@ -697,7 +710,7 @@
       <!-- Anteprima live: mostra sempre lo stato attuale dell'icona in lavorazione — per una
            nuova raccolta parte dal colore della macrocategoria, non da un'emoji a caso. -->
       <div class="icon-live-preview" id="icon-live-preview"></div>
-      <input type="text" id="icon-title-input" placeholder="Titolo della raccolta">
+      <input type="text" id="icon-title-input" placeholder="Titolo della raccolta" autocomplete="off">
       <p class="row-label">Tag (da 1 a 3)</p>
       <div class="tag-chip-row" id="tag-chip-row"></div>
       <p class="tag-hint" id="tag-hint">Scegli almeno un tag dal paniere.</p>
@@ -756,7 +769,7 @@
     <div class="sheet-card">
       <div class="sheet-handle"></div>
       <h3 class="title-h">Emoji e sticker</h3>
-      <input type="text" id="emoji-search-input" placeholder="Cerca (es. 'mare', 'musica', 'cibo')…" oninput="filterEmojiGrid()">
+      <input type="text" id="emoji-search-input" placeholder="Cerca (es. 'mare', 'musica', 'cibo')…" oninput="filterEmojiGrid()" autocomplete="off">
       <div class="emoji-grid" id="emoji-grid"></div>
       <p class="hint" id="emoji-search-hint" style="display:none;">Nessuna emoji corrisponde alla ricerca.</p>
       <button class="ghost-btn" onclick="openPacksSheet('emoji')">Scarica altri sticker</button>
@@ -1035,14 +1048,14 @@ const microCategorie = {
   // che si sono rivelati inaffidabili (foto amatoriali moderne di soggetti generici, illustrazioni
   // scientifiche di nicchia spesso chiuse in scansioni PDF di libri).
   3: [
-    {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph'], queryIntenso:['San Francisco earthquake 1906 ruins photograph', 'earthquake destruction rescue photograph historical']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph'], queryIntenso:['earthquake rubble destruction photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph'], queryIntenso:['building collapse ruins photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'indivisibilità', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}]},
+    {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph'], queryIntenso:['Messina earthquake 1908 ruins rescue photograph', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph'], queryIntenso:['Great Kanto earthquake 1923 Tokyo fire ruins photograph', 'earthquake rubble destruction photograph historical']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph'], queryIntenso:['Johnstown flood 1889 disaster photograph', 'building collapse ruins photograph historical']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'indivisibilità', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}]},
     {nome:'bioforma', sfumatura:14, img:['Haeckel Kunstformen der Natur illustration', 'natural history illustration engraving antique'], salti:[{label:'Cellula', query:['cork cellular structure engraving Hooke']}, {label:'Mutazione', query:['natural history specimen anomaly museum photograph']}, {label:'Crescita', query:['tree rings cross section photograph']}, {label:'Simmetria', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Metamorfosi', query:['butterfly metamorphosis illustration antique']}, {label:'Parassitismo', query:['parasite illustration natural history antique']}, {label:'Simbiosi', query:['lichen photograph natural history']}, {label:'Estinzione', query:['dodo illustration historical']}, {label:'Riproduzione', query:['seed pod photograph natural history']}, {label:'Evoluzione', query:['Darwin finch illustration natural history']}, {label:'Creazione prima', query:['trilobite fossil photograph museum']}]},
     {nome:'temporali e arcobaleni', sfumatura:-6, img:['rainbow photograph landscape', 'lightning storm photograph vintage'], salti:[{label:'Fenomeno', query:['halo sun photograph atmospheric']}, {label:'Scarica', query:['lightning bolt photograph vintage']}, {label:'Diluvio', query:['flood historical photograph documentary']}, {label:'Luce', query:['sunbeam photograph landscape']}, {label:'Prisma', query:['prism light spectrum photograph']}, {label:'Atmosfera', query:['clouds sky photograph NASA']}, {label:'Previsione', query:['weather station instruments photograph vintage']}, {label:'Fotografia', query:['daguerreotype camera photograph antique']}, {label:'Doppio', query:['double rainbow photograph']}, {label:'Dopo', query:['sunset after storm photograph']}, {label:'il più in alto', query:['night sky stars long exposure photograph']}]},
-    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], imgIntenso:['tornado damage aftermath photograph historical', 'tornado disaster wreckage photograph historical'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary'], queryIntenso:['tornado devastation aftermath photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'il più fuori', query:['hurricane eye satellite photograph NASA']}]},
+    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], imgIntenso:['Tri-State Tornado 1925 damage photograph', 'tornado damage aftermath photograph historical', 'tornado disaster wreckage photograph historical'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary'], queryIntenso:['Tri-State Tornado 1925 damage photograph', 'tornado devastation aftermath photograph historical']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'il più fuori', query:['hurricane eye satellite photograph NASA']}]},
     {nome:'collab interspecie', sfumatura:-14, img:['Dürer rhinoceros woodcut natural history', 'natural history menagerie engraving antique'], salti:[{label:'Simbiosi', query:['clownfish anemone photograph natural history']}, {label:'Impollinazione', query:['bee flower engraving natural history']}, {label:'Addomesticamento', query:['shepherd dog sheep photograph historical']}, {label:'Alleanza', query:['Dürer rhinoceros woodcut natural history']}, {label:'Pulizia', query:['egret cattle photograph natural history']}, {label:'Protezione', query:['mother animal offspring photograph natural history']}, {label:'Allarme', query:['meerkat sentinel photograph natural history']}, {label:'Cooperazione', query:['ants photograph natural history macro']}, {label:'Ospite', query:['hermit crab shell photograph natural history']}, {label:'Traduzione', query:['honeybee hive frame photograph vintage']}, {label:'Vita', query:["Dürer rhinoceros woodcut natural history"]}]},
     {nome:'impronte', sfumatura:8, img:['animal tracks snow photograph', 'fossil footprint photograph museum'], salti:[{label:'Traccia', query:['animal tracks mud photograph']}, {label:'Passo', query:['footprint sand photograph vintage']}, {label:'Fango', query:['animal tracks mud photograph documentary']}, {label:'Neve', query:['animal tracks snow photograph']}, {label:'Calco', query:['plaster cast reproduction sculpture museum']}, {label:'Predatore', query:['wolf tracks snow photograph']}, {label:'Preda', query:['deer tracks photograph natural history']}, {label:'Sentiero', query:['forest trail photograph vintage']}, {label:'Fossile', query:['dinosaur footprint fossil photograph museum']}, {label:'Assenza', query:['abandoned nest photograph natural history']}, {label:'morte nella Vita', query:['dinosaur footprint fossil photograph museum']}]},
     {nome:'la tana', sfumatura:-2, img:['animal burrow photograph natural history', 'fox den photograph natural history', 'bear hibernation den photograph natural history'], salti:[{label:'Rifugio', query:['animal shelter cave photograph natural history']}, {label:'Scavo', query:['burrow excavation photograph natural history']}, {label:'Nido', query:['bird nest photograph natural history']}, {label:'Cunicolo', query:['rabbit warren photograph natural history']}, {label:'Buio', query:['cave interior dark photograph']}, {label:'Custodia', query:['animal guarding den photograph natural history']}, {label:'Ingresso', query:['cave entrance photograph vintage']}, {label:'Deposito', query:['squirrel food cache photograph natural history']}, {label:'Letargo', query:['bear hibernation den photograph natural history']}, {label:'Labirinto', query:['maze diagram engraving antique']}, {label:'Istinto', query:['Roman She-wolf Romulus Remus statue photograph', 'Istinto']}, {label:'Paura ancestrale', query:['Duchenne de Boulogne expression of terror photograph', 'Paura ancestrale']}, {label:'Richiamo', query:['bird calling photograph natural history']}, {label:'Migrazione', query:['Audubon birds of America engraving']}, {label:'Imprinting', query:['duckling mother photograph natural history']}, {label:'Eredità', query:['animal family photograph natural history']}, {label:'Sonno', query:['sleeping animal photograph natural history']}, {label:'Sopravvivenza', query:['Shackleton Endurance expedition Hurley photograph', 'Sopravvivenza']}, {label:'Branco', query:['Stieglitz The Steerage photograph', 'Branco']}, {label:'Origine', query:['Haeckel evolution of man plate illustration', 'Origine']}, {label:'il più in basso', query:['cave interior dark photograph']}, {label:'il più dentro', query:['burrow excavation photograph natural history']}, {label:'intelletto agente', query:['Haeckel Kunstformen der Natur illustration']}]},
-    {nome:'disastri', sfumatura:-6, img:['Three Mile Island nuclear accident photograph NARA', 'San Francisco earthquake 1906 ruins photograph'], imgIntenso:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Exxon Valdez oil spill photograph NOAA', 'Bengal famine 1943 photograph'], salti:[{label:'Terremoto', query:['San Francisco earthquake 1906 ruins photograph', 'Terremoto']}, {label:'Eruzione', query:['Lassen Peak eruption 1915 photograph', 'Eruzione']}, {label:'Alluvione', query:['Mississippi River flood 1927 photograph', 'Alluvione']}, {label:'Incendio', query:['wildfire forest fire historical photograph NARA', 'Incendio']}, {label:'Fusione', query:['Three Mile Island nuclear accident photograph NARA', 'Fusione']}, {label:'Marea nera', query:['Exxon Valdez oil spill photograph NOAA', 'Marea nera']}, {label:'Argine', query:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Argine']}, {label:'Marea', query:['Watersnoodramp 1953 Netherlands flood photograph', 'Marea']}, {label:'Carestia', query:['Bengal famine 1943 photograph', 'Carestia']}, {label:'Prosciugamento', query:['Aral Sea shrinking NASA satellite photograph', 'Prosciugamento']}]},
+    {nome:'disastri', sfumatura:-6, img:['Three Mile Island nuclear accident photograph NARA', 'San Francisco earthquake 1906 ruins photograph'], imgIntenso:['Johnstown flood 1889 disaster photograph', 'Hurricane Katrina New Orleans aerial photograph FEMA', 'Exxon Valdez oil spill photograph NOAA', 'Bengal famine 1943 photograph'], salti:[{label:'Terremoto', query:['San Francisco earthquake 1906 ruins photograph', 'Terremoto']}, {label:'Eruzione', query:['Lassen Peak eruption 1915 photograph', 'Eruzione']}, {label:'Alluvione', query:['Mississippi River flood 1927 photograph', 'Alluvione']}, {label:'Incendio', query:['wildfire forest fire historical photograph NARA', 'Incendio']}, {label:'Fusione', query:['Three Mile Island nuclear accident photograph NARA', 'Fusione']}, {label:'Marea nera', query:['Exxon Valdez oil spill photograph NOAA', 'Marea nera']}, {label:'Argine', query:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Argine']}, {label:'Marea', query:['Watersnoodramp 1953 Netherlands flood photograph', 'Marea']}, {label:'Carestia', query:['Bengal famine 1943 photograph', 'Carestia']}, {label:'Prosciugamento', query:['Aral Sea shrinking NASA satellite photograph', 'Prosciugamento']}]},
     {nome:'ere glaciali', sfumatura:4, img:['glacier photograph historical', 'ice age landscape photograph vintage'], salti:[{label:'Ghiacciaio', query:['glacier photograph historical']}, {label:'Permafrost', query:['permafrost landscape photograph Siberia']}, {label:'Carota di ghiaccio', query:['ice core sample photograph scientific']}, {label:'Megafauna', query:['woolly mammoth skeleton museum photograph']}, {label:'Disgelo', query:['melting glacier ice photograph']}, {label:'Era', query:['woolly mammoth skeleton museum photograph']}, {label:'Estinzione di massa', query:['mammoth skeleton fossil museum photograph']}, {label:'Mammut', query:['woolly mammoth skeleton museum photograph']}, {label:'Livello del mare', query:['coastline photograph historical']}, {label:'Sepoltura nel ghiaccio', query:['frozen mammoth carcass photograph museum']}, {label:'eternità', query:['woolly mammoth skeleton museum photograph']}]},
   ],
   // cultura
@@ -1117,6 +1130,7 @@ function microQueryVariants(settoreIdx, microIdx, preferPop){
   return [...specifiche, m.nome, SETTORE_EN[settoreIdx]];
 }
 let cols = 4;
+let dotSize = 'piccolo'; // 'piccolo' | 'medio' | 'grande' — vedi setDotSize e .dot-size-* in CSS
 let currentPage = 0;
 let editorCtx = null; // {pageIdx, iconIdx or null}, tempEmoji, tempImage
 let clockPosition = 'sopra'; // 'sopra' | 'griglia' | 'sotto' — dichiarata qui, prima della
@@ -1307,6 +1321,19 @@ function setClockPosition(pos){
   applyMood(); // ricalcola la dimensione del quadrante (compatta se è entrato nella griglia)
   saveLayout();
 }
+// Taglia dei pallini colorati sotto le icone home (vedi .dot/.dot-size-* in CSS): puro
+// interruttore di classe sul body, nessun re-render della griglia necessario — i pallini
+// esistono già nel DOM, cambia solo la loro dimensione via CSS.
+function setDotSize(size){
+  dotSize = size;
+  document.body.classList.remove('dot-size-medio', 'dot-size-grande');
+  if(size === 'medio') document.body.classList.add('dot-size-medio');
+  if(size === 'grande') document.body.classList.add('dot-size-grande');
+  document.getElementById('dot-size-btn-piccolo').classList.toggle('active', size === 'piccolo');
+  document.getElementById('dot-size-btn-medio').classList.toggle('active', size === 'medio');
+  document.getElementById('dot-size-btn-grande').classList.toggle('active', size === 'grande');
+  saveLayout();
+}
 // Il quadrante stesso è l'area interattiva, senza più una maniglietta separata: pigiare vicino
 // al bordo/anello avvia il trascinamento per spostare l'orologio (stessa logica di prima), un
 // tap vicino al centro apre invece la banda di ricerca con tutte le macro/microcategorie.
@@ -1381,6 +1408,10 @@ function setClockPosition(pos){
 
 // --- pannello di modifica/aggiunta icona ---
 function openIconSheet(pageIdx, iconIdx){
+  // Stessa cautela di closeIconSheet: se si apre una scheda icona mentre il campo titolo di
+  // un'apertura precedente aveva ancora il fuoco (navigazione veloce), lo si toglie subito,
+  // prima ancora di ripopolare il valore sotto.
+  document.getElementById('icon-title-input').blur();
   const isNew = iconIdx === null;
   editorCtx = {
     pageIdx, iconIdx,
@@ -1471,6 +1502,7 @@ function openEmojiPickerSheet(){
   document.getElementById('emoji-picker-sheet').classList.add('active');
 }
 function closeEmojiPickerSheet(){
+  document.getElementById('emoji-search-input').blur();
   document.getElementById('emoji-picker-sheet').classList.remove('active');
 }
 // Fonte collegata: rispecchia la scelta del brief tra collegare l'intero profilo o solo
@@ -1627,7 +1659,12 @@ function onIconPhotoChosen(e){
   };
   reader.readAsDataURL(file);
 }
-function closeIconSheet(){ document.getElementById('icon-sheet').classList.remove('active'); editorCtx = null; }
+// Bug reale corretto: navigando veloce tra icone (chiudi-riapri rapido) il campo titolo poteva
+// restare a fuoco anche a scheda chiusa — sul telefono la tastiera/suggerimenti del browser
+// (Gboard/Chrome, quella che sembra "una scheda Google") lampeggiava per un istante prima di
+// sparire. blur() esplicito qui, prima di nascondere la scheda, evita che il fuoco sopravviva
+// alla transizione.
+function closeIconSheet(){ document.getElementById('icon-title-input').blur(); document.getElementById('icon-sheet').classList.remove('active'); editorCtx = null; }
 function saveIconSheet(){
   if(!editorCtx) return;
   if(editorCtx.tempSettori.length === 0){
@@ -2327,6 +2364,12 @@ function shakeCreditsRow(){
 // disponibili è identico per tutte e 9.
 function navigateMicro(direction){
   const sIdx = currentTagIdx;
+  // Bug reale trovato con test di navigazione veloce (swipe ripetuti a raffica nello schermo
+  // intero): se currentTagIdx risultava fuori dai 7 settori validi (stato salvato corrotto o
+  // stale da una versione precedente), tutta la catena sotto (sortedMicroIndices → settori[sIdx]
+  // → openFullscreen) andava in crash silenzioso — nessun errore visibile, ma la navigazione si
+  // bloccava. Guardia minima: nessuna microcategoria valida, nessuno swipe, nessun crash.
+  if(!microCategorie[sIdx]) return;
   const order = sortedMicroIndices(sIdx);
   const stride = coprimeStride(order.length);
   let pos = 0;
@@ -2981,6 +3024,10 @@ function openFullscreen(seed, settore, microIdx, forcedVersionIdx){
   // Stesso blocco di openTag: anche il widget "Ultima scoperta" in home apre lo schermo
   // intero direttamente, senza passare dalla griglia — va comunque impedito durante l'attesa.
   if(inWait){ document.getElementById('lockout').classList.add('active'); return; }
+  // Stessa guardia di navigateMicro, qui a protezione di OGNI chiamante (widget "Ultima
+  // scoperta" incluso) — un settore mancante/indefinito non deve mai arrivare al crash su
+  // settore.nome più sotto.
+  if(!settore) return;
   const settoreIdx = settori.indexOf(settore);
   const micro = (microIdx !== undefined && microIdx !== null) ? microCategorie[settoreIdx][microIdx] : null;
   const key = (microIdx !== undefined && microIdx !== null) ? (settoreIdx + '|' + microIdx) : null;
@@ -3833,7 +3880,7 @@ const SESSION_KEY = 'smarchive:session:v2';
 function saveLayout(){
   try{
     localStorage.setItem(LAYOUT_KEY, JSON.stringify({
-      pages, cols, clockPosition, showCreditsWidget, showLastWidget, showClockHint, registroIntenso,
+      pages, cols, clockPosition, showCreditsWidget, showLastWidget, showClockHint, registroIntenso, dotSize,
       activeWallpaperId, customWallpaperDataUrl,
       downloadedWallpaperIds: downloadedWallpapers.map(w => w.id),
       downloadedMoodIds: moods.filter(m => m.id).map(m => m.id),
@@ -3914,6 +3961,9 @@ function loadLayoutState(){
       registroIntenso = s.registroIntenso;
       document.getElementById('toggle-intenso').checked = s.registroIntenso;
     }
+    if(typeof s.dotSize === 'string'){
+      setDotSize(s.dotSize);
+    }
     if(typeof s.maxCredits === 'number'){
       document.getElementById('input-crediti').value = s.maxCredits;
       updateCrediti(s.maxCredits);
@@ -3956,7 +4006,7 @@ function loadSessionState(){
     if(s.inWait && typeof s.lockoutEndsAt === 'number' && s.lockoutEndsAt <= Date.now()) return;
 
     if(typeof s.credits === 'number') credits = s.credits;
-    if(typeof s.currentTagIdx === 'number') currentTagIdx = s.currentTagIdx;
+    if(typeof s.currentTagIdx === 'number' && microCategorie[s.currentTagIdx]) currentTagIdx = s.currentTagIdx;
     if(typeof s.currentGridPage === 'number') currentGridPage = s.currentGridPage;
     if(Array.isArray(s.sessionTagsVisitati)) sessionTagsVisitati = new Set(s.sessionTagsVisitati);
     if(Array.isArray(s.sessionMicroVisitati)) sessionMicroVisitati = new Set(s.sessionMicroVisitati);
