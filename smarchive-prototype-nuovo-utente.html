@@ -1085,16 +1085,94 @@ const microCategorie = {
   // attualità — molte di queste microcategorie sono meglio servite da archivi storici di
   // giornali/fotografia documentaria piuttosto che da termini astratti come 'analisi' o
   // 'opinioni', che non descrivono nulla di fotografabile.
+  // Attualità ricostruita dall'Atlante (migrazioni, città, clima, tecnologia, economia, media,
+  // guerre, politica, ambiente urbano — sport escluso su richiesta, identità esclusa dalla
+  // griglia con i suoi 10 salti ridistribuiti come singoli extra sulle altre 9, stesso principio
+  // "griglia sempre a 9" di Natura/Meme). "Guerre" fonde anche Disastri per scelta esplicita
+  // dell'utente e porta la ponderazione geopolitica vincolante (vedi memoria
+  // geopolitical-weighting-policy): Europa/USA/Africa, con Africa garantita ad almeno 3 salti su 8.
   6: [
-    {nome:'rassegna stampa', sfumatura:-22, img:['vintage newspaper front page', 'historical newspaper archive', 'old newspaper print']},
-    {nome:'opinioni', sfumatura:-6, img:['newspaper opinion page', 'editorial page vintage', 'printed column newspaper']},
-    {nome:'inchieste', sfumatura:22, img:['journalist reporter vintage photograph', 'investigative reporter archive', 'press reporter photograph']},
-    {nome:'economia quotidiana', sfumatura:-14, img:['marketplace economy vintage photograph', 'trade market vintage photo', 'commerce street market historical']},
-    {nome:'società e costume', sfumatura:8, img:['historical street scene photograph', 'everyday life vintage photograph', 'social gathering historical photo']},
-    {nome:'innovazione civica', sfumatura:-2, img:['city hall civic building', 'public civic architecture', 'municipal building historical']},
-    {nome:'cronaca locale', sfumatura:18, img:['local newspaper vintage photograph', 'town street historical photograph', 'community event vintage photo']},
-    {nome:'dibattiti pubblici', sfumatura:-18, img:['public assembly meeting historical', 'town hall meeting vintage', 'public gathering speech photograph']},
-    {nome:'tendenze emergenti', sfumatura:4, img:['modern city street photograph', 'contemporary urban scene', 'city skyline modern photograph']},
+    {nome:'migrazioni', sfumatura:-8, img:['Ellis Island immigrants photograph Lewis Hine'], salti:[
+      {label:'Attesa', query:['Ellis Island immigrants waiting photograph Lewis Hine', 'Attesa']},
+      {label:'Ponte', query:['Brooklyn Bridge photograph historical W.H. Jackson', 'Ponte']},
+      {label:'Lingua', query:['Bruegel Tower of Babel painting', 'Lingua']},
+      {label:'Bagaglio', query:['Immigrant Family Baggage Room Ellis Island photograph', 'Bagaglio']},
+      {label:'Frontiera', query:['Historic Trails Oregon Trail photograph BLM', 'Frontiera']},
+      {label:'Radici', query:['Oak tree struck by lightning photograph 1856', 'Radici']},
+      {label:'Confine', query:['antique world map engraving continents 1744', 'Confine']},
+      {label:'Approdo', query:['Climbing into the Promised Land Ellis Island Lewis Hine photograph', 'Approdo']},
+      {label:'Nome', query:['Ellis Island immigrants photograph Lewis Hine']},
+    ]},
+    {nome:'città', sfumatura:10, img:['View of New York City from Brooklyn 1824 engraving', 'aerial city photograph historical'], salti:[
+      {label:'Grattacielo', query:['Lunch atop a Skyscraper photograph 1932', 'Grattacielo']},
+      {label:'Piazza', query:['Canaletto Piazza San Marco painting', 'Piazza']},
+      {label:'Insonnia', query:['Times Square night photograph historical 1963', 'Insonnia']},
+      {label:'Metropolitana', query:['subway construction photograph historical New York 1979', 'Metropolitana']},
+      {label:'Cantiere', query:['Construction of Trinity Building Manhattan 1904 photograph', 'Cantiere']},
+      {label:'Panorama', query:['View of New York City from Brooklyn 1824 engraving', 'Panorama']},
+      {label:'Specchio', query:['Titian Venus with a Mirror painting']},
+      {label:'Alter ego', query:['Times Square night photograph historical 1963']},
+    ]},
+    {nome:'clima', sfumatura:-14, img:['Earth satellite photograph NASA'], salti:[
+      {label:'Petrolio', query:['East Texas Oilfield historical marker photograph 1930', 'Petrolio']},
+      {label:'Foresta', query:['Ruisdael forest landscape painting', 'Foresta']},
+      {label:'Emissioni', query:['Chino sugar factory smokestacks photograph 1906', 'Emissioni']},
+      {label:'Rinnovabile', query:['Monet Windmills Near Zaandam painting', 'Rinnovabile']},
+      {label:'Accordo', query:['Treaty 8 signing photograph 1899 historical', 'Accordo']},
+      {label:'Domani', query:['Vernet Seaport at Sunrise painting', 'Domani']},
+      {label:'Siccità', query:['Dust Bowl drought photograph Dorothea Lange', 'Siccità']},
+      {label:'Voce', query:['Edison phonograph group photograph 1888']},
+    ]},
+    {nome:'tecnologia', sfumatura:2, img:['Alwac III computer photograph 1959'], salti:[
+      {label:'Automazione', query:['Ford assembly plant photograph historical HAER', 'Automazione']},
+      {label:'Circuito', query:['PT&T telephone switchboard operators photograph Seattle 1921', 'Circuito']},
+      {label:'Invenzione', query:['Thomas Edison laboratory photograph historical', 'Invenzione']},
+      {label:'Rete', query:['Western Union Telegraph Company telegram photograph historical', 'Rete']},
+      {label:'Calcolo', query:['Curio Shop abacus photograph Felice Beato', 'Calcolo']},
+      {label:'Confine', query:['antique world map engraving continents 1744']},
+    ]},
+    {nome:'economia', sfumatura:-4, img:['stock exchange trading floor photograph historical Toronto'], salti:[
+      {label:'Moneta', query:['ancient Roman coin photograph museum', 'Moneta']},
+      {label:'Crisi', query:['Depression breadlines photograph NARA 1932', 'Crisi']},
+      {label:'Bilancia', query:['Byzantine steelyard scale photograph museum', 'Bilancia']},
+      {label:'Lavoro', query:['Lewis Hine factory workers photograph historical', 'Lavoro']},
+      {label:'Fabbrica', query:['Ford assembly plant photograph historical HAER', 'Fabbrica']},
+      {label:'Eredità', query:['Constable Wivenhoe Park painting']},
+    ]},
+    {nome:'media', sfumatura:6, img:['newspaper editorial room photograph historical 1870'], salti:[
+      {label:'Propaganda', query:['WWI Victory Bonds poster photograph historical', 'Propaganda']},
+      {label:'Antenna', query:['DeForest Wireless Radio Tower photograph 1904 World Fair', 'Antenna']},
+      {label:'Scoop', query:['newsboys photograph historical Lewis Hine St Louis', 'Scoop']},
+      {label:'Maschera', query:['Rosalba Carriera Masquerade Costume painting']},
+    ]},
+    {nome:'guerre', sfumatura:-22, img:['American Soldiers 75th Division Belgium photograph 1945 NARA'], salti:[
+      {label:'Fronte', query:['WWI trench photograph Hardesty historical', 'Fronte']},
+      {label:'Sbarco', query:['D-Day Normandy landing photograph 1944 Imperial War Museum', 'Sbarco']},
+      {label:'Bandiera', query:['Raising the Flag on Iwo Jima photograph Joe Rosenthal', 'Bandiera']},
+      {label:'Cortina', query:['Cuban Missile Crisis photograph historical Marine Corps', 'Cortina']},
+      {label:'Giungla', query:['Vietnam War Staff Sergeant Stevens photograph 1964 NARA', 'Giungla']},
+      {label:'Deserto', query:['Battle of El Alamein North Africa campaign photograph historical', 'Deserto']},
+      {label:'Soccorso', query:['Food aid Nigeria Biafra photograph historical', 'Soccorso']},
+      {label:'Canale', query:['Port Said Suez Crisis photograph 1956 Imperial War Museum', 'Canale']},
+      {label:'Cicatrice', query:['Battle of El Alamein North Africa campaign photograph historical']},
+    ]},
+    {nome:'politica', sfumatura:-2, img:['Parliament Buildings Ottawa photograph historical 1913'], salti:[
+      {label:'Rivoluzione', query:['Delacroix Liberty Leading the People painting', 'Rivoluzione']},
+      {label:'Potere', query:['Crown of Wladyslaw IV Vasa photograph museum', 'Potere']},
+      {label:'Discorso', query:['President Gerald Ford campaign rally photograph 1976 NARA', 'Discorso']},
+      {label:'Voto', query:['Election scene Brisbane city hall photograph 1935', 'Voto']},
+      {label:'Alleanza', query:['Treaty 8 signing photograph 1899 historical', 'Alleanza']},
+      {label:'Tribù', query:['Delacroix Liberty Leading the People painting']},
+    ]},
+    {nome:'ambiente urbano', sfumatura:16, img:['urban park photograph historical vintage policeman bicycle 1949'], salti:[
+      {label:'Panchina', query:['Parque Dom Pedro II benches photograph historical São Paulo', 'Panchina']},
+      {label:'Fontana', query:['Fountain of Trevi Rome photograph historical', 'Fontana']},
+      {label:'Quartiere', query:['Residential area Seattle photograph 1899', 'Quartiere']},
+      {label:'Ombra', query:['Villa Pallavicini tree-lined avenue photograph historical Noack', 'Ombra']},
+      {label:'Verde', query:['Constable Wivenhoe Park painting', 'Verde']},
+      {label:'Illuminazione', query:['Electric Light Station Honolulu photograph historical', 'Illuminazione']},
+      {label:'Bandiera', query:['Raising the Flag on Iwo Jima photograph Joe Rosenthal']},
+    ]},
   ],
 };
 function shadeColor(hex, percent){
