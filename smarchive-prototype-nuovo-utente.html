@@ -324,6 +324,11 @@
   .icon-sheet, .confirm-sheet, .packs-sheet, .search-sheet, .frame-sheet, .quick-sheet, .nota-sheet, .emoji-picker-sheet, .attach-sheet{ display:none; position:absolute; inset:0; background:rgba(19,18,16,0.6); z-index:30; align-items:flex-end; }
   .icon-sheet.active, .confirm-sheet.active, .packs-sheet.active, .search-sheet.active, .frame-sheet.active, .quick-sheet.active, .nota-sheet.active, .emoji-picker-sheet.active, .attach-sheet.active{ display:flex; }
   .attach-sheet{ z-index:31; } /* si apre sopra .search-sheet, stesso principio di .emoji-picker-sheet sopra .icon-sheet */
+  /* Bug reale corretto: il toggle che apre questa conferma vive dentro il top-panel "Navigazione
+     e sessione" (z-index:41), non dentro uno degli altri sheet base (z-index:30) — restando a 30
+     si apriva invisibile, sepolta sotto il pannello stesso. L'utente vedeva l'interruttore
+     scattare su ma non poteva mai raggiungere "Confermo": registroIntenso restava false. */
+  #intenso-confirm-sheet{ z-index:42; }
   .nota-sheet.dragging{ display:flex; }
 
   /* Pannelli "a tendina" stile iPhone: sostituiscono il vecchio menu a tre linee. Swipe-down
@@ -609,13 +614,14 @@
         <!-- Registro intenso: autodichiarato dall'utente (nessun documento, nessuna verifica
              d'identità reale — sproporzionata per foto storiche già liberamente pubbliche), un
              interruttore con conferma esplicita, sullo stesso principio del "contenuto sensibile"
-             di Wikipedia. Quando attivo, i soli salti che già toccano temi di distruzione/morte
-             (vedi `queryIntenso` in microCategorie) cercano la loro traduzione più diretta e
-             cruda invece di quella attenuata di default — mai violenza iniettata dove non c'era
-             già, sempre foto reali e storiche, mai gratuite. Vedi openSaltoSheet. -->
+             di Wikipedia. Quando attivo, i soli salti (`queryIntenso`) e le sole query di base
+             (`imgIntenso`) che già toccano temi di distruzione/morte cercano la loro traduzione
+             più diretta e cruda invece di quella attenuata di default — mai violenza iniettata
+             dove non c'era già, sempre foto reali e storiche, mai gratuite. Vedi openSaltoSheet
+             e microQueryVariants. -->
         <p class="section-label">Contenuti</p>
-        <div class="switch-row"><span class="row-label" style="margin:0;">Registro intenso nei salti</span><label class="switch"><input type="checkbox" id="toggle-intenso" onchange="onToggleIntenso(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
-        <p class="hint">Dove un salto tocca già temi di distruzione o morte, mostra la sua traduzione più diretta e cruda invece di quella attenuata — sempre foto storiche reali, mai immagini generate.</p>
+        <div class="switch-row"><span class="row-label" style="margin:0;">Registro intenso</span><label class="switch"><input type="checkbox" id="toggle-intenso" onchange="onToggleIntenso(this.checked)"><span class="track"><span class="thumb"></span></span></label></div>
+        <p class="hint">Dove una query o un salto toccano già temi di distruzione o morte, mostra la loro traduzione più diretta e cruda invece di quella attenuata — sempre foto storiche reali, mai immagini generate.</p>
 
         <p class="section-label">Sessione</p>
         <div class="field-row"><span class="row-label">Utilizzo netto massimo (min)</span><input type="number" min="5" max="180" value="55" id="input-maxnav" onchange="saveLayout()"></div>
@@ -823,7 +829,7 @@
     <div class="sheet-card">
       <div class="sheet-handle"></div>
       <h3 class="title-h">Registro intenso</h3>
-      <p class="bio">Dove un salto tocca già temi di distruzione o morte, vedrai la sua traduzione più diretta e cruda — sempre foto storiche reali e documentarie, mai immagini generate o gratuite. Confermi di volerle vedere?</p>
+      <p class="bio">Dove una query o un salto toccano già temi di distruzione o morte, vedrai la loro traduzione più diretta e cruda — sempre foto storiche reali e documentarie, mai immagini generate o gratuite. Confermi di volerle vedere?</p>
       <div class="sheet-actions">
         <button class="secondary" onclick="cancelIntenso()">Annulla</button>
         <button class="primary" onclick="confirmIntenso()">Confermo</button>
@@ -1032,11 +1038,11 @@ const microCategorie = {
     {nome:'placche tettoniche', sfumatura:-22, img:['geological fault line landscape photograph', 'San Andreas fault aerial photograph', 'tectonic plate map diagram historical'], salti:[{label:'Continenti', query:['antique world map engraving continents']}, {label:'Deriva', query:['continental drift map diagram historical']}, {label:'Faglia', query:['geological fault line photograph']}, {label:'Subduzione', query:['volcanic mountain range photograph']}, {label:'Pangea', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}, {label:'Terremoto', query:['earthquake damage historical photograph'], queryIntenso:['San Francisco earthquake 1906 ruins photograph', 'earthquake destruction rescue photograph historical']}, {label:'Fuoco', query:['volcanic eruption photograph']}, {label:'Collisione', query:['folded rock strata mountain photograph'], queryIntenso:['earthquake rubble destruction photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Rottura', query:['crevasse glacier photograph', 'cracked earth ground photograph'], queryIntenso:['building collapse ruins photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Movimento', query:['lava flow photograph vintage']}, {label:'indivisibilità', query:['Pangea map reconstruction historical', 'supercontinent map diagram vintage']}]},
     {nome:'bioforma', sfumatura:14, img:['Haeckel Kunstformen der Natur illustration', 'natural history illustration engraving antique'], salti:[{label:'Cellula', query:['cork cellular structure engraving Hooke']}, {label:'Mutazione', query:['natural history specimen anomaly museum photograph']}, {label:'Crescita', query:['tree rings cross section photograph']}, {label:'Simmetria', query:['Haeckel Kunstformen der Natur illustration']}, {label:'Metamorfosi', query:['butterfly metamorphosis illustration antique']}, {label:'Parassitismo', query:['parasite illustration natural history antique']}, {label:'Simbiosi', query:['lichen photograph natural history']}, {label:'Estinzione', query:['dodo illustration historical']}, {label:'Riproduzione', query:['seed pod photograph natural history']}, {label:'Evoluzione', query:['Darwin finch illustration natural history']}, {label:'Creazione prima', query:['trilobite fossil photograph museum']}]},
     {nome:'temporali e arcobaleni', sfumatura:-6, img:['rainbow photograph landscape', 'lightning storm photograph vintage'], salti:[{label:'Fenomeno', query:['halo sun photograph atmospheric']}, {label:'Scarica', query:['lightning bolt photograph vintage']}, {label:'Diluvio', query:['flood historical photograph documentary']}, {label:'Luce', query:['sunbeam photograph landscape']}, {label:'Prisma', query:['prism light spectrum photograph']}, {label:'Atmosfera', query:['clouds sky photograph NASA']}, {label:'Previsione', query:['weather station instruments photograph vintage']}, {label:'Fotografia', query:['daguerreotype camera photograph antique']}, {label:'Doppio', query:['double rainbow photograph']}, {label:'Dopo', query:['sunset after storm photograph']}, {label:'il più in alto', query:['night sky stars long exposure photograph']}]},
-    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary'], queryIntenso:['tornado devastation aftermath photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'il più fuori', query:['hurricane eye satellite photograph NASA']}]},
+    {nome:'tornadi spiralici', sfumatura:22, img:['tornado funnel photograph vintage', 'tornado supercell photograph NOAA'], imgIntenso:['tornado damage aftermath photograph historical', 'tornado disaster wreckage photograph historical'], salti:[{label:'Vortice', query:['whirlpool photograph natural']}, {label:'Spirale', query:['spiral galaxy photograph NASA']}, {label:'Occhio', query:['hurricane eye satellite photograph NASA']}, {label:'Risucchio', query:['waterspout photograph ocean']}, {label:'Caos', query:['storm clouds photograph dramatic']}, {label:'Forza', query:['storm damage photograph historical']}, {label:'Devastazione', query:['tornado damage photograph historical documentary'], queryIntenso:['tornado devastation aftermath photograph historical', 'San Francisco earthquake 1906 ruins photograph']}, {label:'Danza', query:['dust devil photograph desert']}, {label:'Cacciatore', query:['weather balloon launch photograph vintage']}, {label:'Colonna', query:['waterspout column photograph ocean']}, {label:'il più fuori', query:['hurricane eye satellite photograph NASA']}]},
     {nome:'collab interspecie', sfumatura:-14, img:['Dürer rhinoceros woodcut natural history', 'natural history menagerie engraving antique'], salti:[{label:'Simbiosi', query:['clownfish anemone photograph natural history']}, {label:'Impollinazione', query:['bee flower engraving natural history']}, {label:'Addomesticamento', query:['shepherd dog sheep photograph historical']}, {label:'Alleanza', query:['Dürer rhinoceros woodcut natural history']}, {label:'Pulizia', query:['egret cattle photograph natural history']}, {label:'Protezione', query:['mother animal offspring photograph natural history']}, {label:'Allarme', query:['meerkat sentinel photograph natural history']}, {label:'Cooperazione', query:['ants photograph natural history macro']}, {label:'Ospite', query:['hermit crab shell photograph natural history']}, {label:'Traduzione', query:['honeybee hive frame photograph vintage']}, {label:'Vita', query:["Dürer rhinoceros woodcut natural history"]}]},
     {nome:'impronte', sfumatura:8, img:['animal tracks snow photograph', 'fossil footprint photograph museum'], salti:[{label:'Traccia', query:['animal tracks mud photograph']}, {label:'Passo', query:['footprint sand photograph vintage']}, {label:'Fango', query:['animal tracks mud photograph documentary']}, {label:'Neve', query:['animal tracks snow photograph']}, {label:'Calco', query:['plaster cast reproduction sculpture museum']}, {label:'Predatore', query:['wolf tracks snow photograph']}, {label:'Preda', query:['deer tracks photograph natural history']}, {label:'Sentiero', query:['forest trail photograph vintage']}, {label:'Fossile', query:['dinosaur footprint fossil photograph museum']}, {label:'Assenza', query:['abandoned nest photograph natural history']}, {label:'morte nella Vita', query:['dinosaur footprint fossil photograph museum']}]},
     {nome:'la tana', sfumatura:-2, img:['animal burrow photograph natural history', 'fox den photograph natural history', 'bear hibernation den photograph natural history'], salti:[{label:'Rifugio', query:['animal shelter cave photograph natural history']}, {label:'Scavo', query:['burrow excavation photograph natural history']}, {label:'Nido', query:['bird nest photograph natural history']}, {label:'Cunicolo', query:['rabbit warren photograph natural history']}, {label:'Buio', query:['cave interior dark photograph']}, {label:'Custodia', query:['animal guarding den photograph natural history']}, {label:'Ingresso', query:['cave entrance photograph vintage']}, {label:'Deposito', query:['squirrel food cache photograph natural history']}, {label:'Letargo', query:['bear hibernation den photograph natural history']}, {label:'Labirinto', query:['maze diagram engraving antique']}, {label:'Istinto', query:['Roman She-wolf Romulus Remus statue photograph', 'Istinto']}, {label:'Paura ancestrale', query:['Duchenne de Boulogne expression of terror photograph', 'Paura ancestrale']}, {label:'Richiamo', query:['bird calling photograph natural history']}, {label:'Migrazione', query:['Audubon birds of America engraving']}, {label:'Imprinting', query:['duckling mother photograph natural history']}, {label:'Eredità', query:['animal family photograph natural history']}, {label:'Sonno', query:['sleeping animal photograph natural history']}, {label:'Sopravvivenza', query:['Shackleton Endurance expedition Hurley photograph', 'Sopravvivenza']}, {label:'Branco', query:['Stieglitz The Steerage photograph', 'Branco']}, {label:'Origine', query:['Haeckel evolution of man plate illustration', 'Origine']}, {label:'il più in basso', query:['cave interior dark photograph']}, {label:'il più dentro', query:['burrow excavation photograph natural history']}, {label:'intelletto agente', query:['Haeckel Kunstformen der Natur illustration']}]},
-    {nome:'disastri', sfumatura:-6, img:['Three Mile Island nuclear accident photograph NARA', 'San Francisco earthquake 1906 ruins photograph'], salti:[{label:'Terremoto', query:['San Francisco earthquake 1906 ruins photograph', 'Terremoto']}, {label:'Eruzione', query:['Lassen Peak eruption 1915 photograph', 'Eruzione']}, {label:'Alluvione', query:['Mississippi River flood 1927 photograph', 'Alluvione']}, {label:'Incendio', query:['wildfire forest fire historical photograph NARA', 'Incendio']}, {label:'Fusione', query:['Three Mile Island nuclear accident photograph NARA', 'Fusione']}, {label:'Marea nera', query:['Exxon Valdez oil spill photograph NOAA', 'Marea nera']}, {label:'Argine', query:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Argine']}, {label:'Marea', query:['Watersnoodramp 1953 Netherlands flood photograph', 'Marea']}, {label:'Carestia', query:['Bengal famine 1943 photograph', 'Carestia']}, {label:'Prosciugamento', query:['Aral Sea shrinking NASA satellite photograph', 'Prosciugamento']}]},
+    {nome:'disastri', sfumatura:-6, img:['Three Mile Island nuclear accident photograph NARA', 'San Francisco earthquake 1906 ruins photograph'], imgIntenso:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Exxon Valdez oil spill photograph NOAA', 'Bengal famine 1943 photograph'], salti:[{label:'Terremoto', query:['San Francisco earthquake 1906 ruins photograph', 'Terremoto']}, {label:'Eruzione', query:['Lassen Peak eruption 1915 photograph', 'Eruzione']}, {label:'Alluvione', query:['Mississippi River flood 1927 photograph', 'Alluvione']}, {label:'Incendio', query:['wildfire forest fire historical photograph NARA', 'Incendio']}, {label:'Fusione', query:['Three Mile Island nuclear accident photograph NARA', 'Fusione']}, {label:'Marea nera', query:['Exxon Valdez oil spill photograph NOAA', 'Marea nera']}, {label:'Argine', query:['Hurricane Katrina New Orleans aerial photograph FEMA', 'Argine']}, {label:'Marea', query:['Watersnoodramp 1953 Netherlands flood photograph', 'Marea']}, {label:'Carestia', query:['Bengal famine 1943 photograph', 'Carestia']}, {label:'Prosciugamento', query:['Aral Sea shrinking NASA satellite photograph', 'Prosciugamento']}]},
     {nome:'ere glaciali', sfumatura:4, img:['glacier photograph historical', 'ice age landscape photograph vintage'], salti:[{label:'Ghiacciaio', query:['glacier photograph historical']}, {label:'Permafrost', query:['permafrost landscape photograph Siberia']}, {label:'Carota di ghiaccio', query:['ice core sample photograph scientific']}, {label:'Megafauna', query:['woolly mammoth skeleton museum photograph']}, {label:'Disgelo', query:['melting glacier ice photograph']}, {label:'Era', query:['woolly mammoth skeleton museum photograph']}, {label:'Estinzione di massa', query:['mammoth skeleton fossil museum photograph']}, {label:'Mammut', query:['woolly mammoth skeleton museum photograph']}, {label:'Livello del mare', query:['coastline photograph historical']}, {label:'Sepoltura nel ghiaccio', query:['frozen mammoth carcass photograph museum']}, {label:'eternità', query:['woolly mammoth skeleton museum photograph']}]},
   ],
   // cultura
@@ -1102,7 +1108,11 @@ function microColore(settoreIdx, microIdx){
 // priva solo perché non ancora scritto.
 function microQueryVariants(settoreIdx, microIdx, preferPop){
   const m = microCategorie[settoreIdx][microIdx];
-  const fonte = (preferPop && m.imgPop) ? m.imgPop : m.img;
+  // Stesso principio di `queryIntenso` sui salti (vedi openSaltoSheet): solo dove la
+  // microcategoria ha già una sua `imgIntenso` scritta a mano (tornadi spiralici, disastri —
+  // mai iniettata altrove) e l'utente ha attivato il registro intenso di sua scelta, questa
+  // vince anche sul registro pop.
+  const fonte = (registroIntenso && m.imgIntenso) ? m.imgIntenso : ((preferPop && m.imgPop) ? m.imgPop : m.img);
   const specifiche = Array.isArray(fonte) ? fonte : [fonte];
   return [...specifiche, m.nome, SETTORE_EN[settoreIdx]];
 }
@@ -2789,10 +2799,48 @@ const FALLBACK_POP_QUERIES = [
   'bizarre roadside attraction',
   'surreal vintage snapshot',
 ];
+// Vedi il commento in fetchPublicDomainImage: otto fotografie reali e verificate, ciascuna una
+// diversa manifestazione concreta di "climate chaos" secondo il Third Notice — ghiaccio, oceano,
+// foresta, siccità, origine industriale, fuoco, desertificazione — così la sfumatura che si
+// accumula non è mai la stessa immagine ripetuta.
+const CLIMATE_WARNING_QUERIES = [
+  'Amazon deforestation aerial photograph NASA',
+  'Arctic sea ice loss photograph NASA',
+  'coral bleaching photograph NOAA satellite',
+  'Upsala Glacier retreat photograph NASA',
+  'Dust Bowl drought photograph Dorothea Lange',
+  'Pittsburgh industrial smoke pollution photograph historical',
+  'wildfire forest fire historical photograph NARA',
+  'Aral Sea shrinking NASA satellite photograph',
+];
 async function fetchPublicDomainImage(queryOrQueries, preferPop){
   if(typeof fetch === 'undefined') return null; // ambienti senza fetch: niente tentativo di rete
   const varianti = (Array.isArray(queryOrQueries) ? queryOrQueries : [queryOrQueries]).filter(Boolean);
   const sources = preferPop ? [...shuffleArray(POP_IMAGE_SOURCES), ...shuffleArray(IMAGE_SOURCES)] : shuffleArray(IMAGE_SOURCES);
+  // "World Scientists' Warning to Humanity: A Third Notice" (luglio 2026, scientistswarning.org
+  // — terzo appello dopo il 1992 e il 2017: clima, biodiversità e inquinamento come manifestazioni
+  // intrecciate dello stesso sovrasfruttamento). Richiesta esplicita dell'utente: il tema deve
+  // attraversare *tutto* l'archivio, non solo le query già a tema — una sfumatura sottile (7% di
+  // ogni singola risoluzione, griglia/refresh/salto, qualunque macroarea) che si accumula foto
+  // dopo foto invece di essere dichiarata. Mai un badge o un testo diversi dal solito: la foto
+  // resta una foto reale come le altre, il credito parla da sé. Se non trova nulla di nuovo tra
+  // queste otto, ricade silenziosamente sulla ricerca prevista sotto — mai un buco al suo posto.
+  if(Math.random() < 0.07){
+    for(const query of shuffleArray(CLIMATE_WARNING_QUERIES)){
+      for(const source of sources){
+        try {
+          const result = await source(query);
+          if(result && !usedImageUrls.has(result.url)){
+            usedImageUrls.add(result.url);
+            persistUsedImageUrls();
+            return result;
+          }
+        } catch(err) {
+          // una singola fonte irraggiungibile qui non blocca le altre
+        }
+      }
+    }
+  }
   for(const query of varianti){
     for(const source of sources){
       try {
